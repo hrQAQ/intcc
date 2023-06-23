@@ -1,0 +1,6 @@
+# NS3 gitignore file
+*.pyc
+/build/
+.DS_Store
+.lock-waf_linux2_build
+.waf*/
