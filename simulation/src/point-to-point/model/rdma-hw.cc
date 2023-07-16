@@ -1183,7 +1183,7 @@ namespace ns3
 				{
 					double prev = qp->intcc.m_lastUtilization;
 					// 计算广域网速率并且更新
-					new_rate = qp->intcc.m_curRate * m_targetUtil * m_targetUtil - 2 * m_targetUtil * prev + prev * qp->intcc.m_maxU / m_targetUtil / std::abs(qp->intcc.m_maxU - prev) + m_rai;
+					new_rate = qp->intcc.m_curRate * (m_targetUtil * m_targetUtil - 2 * m_targetUtil * prev + prev * qp->intcc.m_maxU)/ m_targetUtil / std::abs(qp->intcc.m_maxU - prev) + m_rai;
 				}
 			}
 			else
