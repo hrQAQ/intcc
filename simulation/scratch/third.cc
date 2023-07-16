@@ -42,11 +42,13 @@ using namespace std;
 
 NS_LOG_COMPONENT_DEFINE("GENERIC_SIMULATION");
 
+// 3:hpcc 7:timely 10: hpcc-pint
 uint32_t cc_mode = 1;
 bool enable_qcn = true, use_dynamic_pfc_threshold = true;
 uint32_t packet_payload_size = 1000, l2_chunk_size = 0, l2_ack_interval = 0;
 double pause_time = 5, simulator_stop_time = 3.01;
 std::string data_rate, link_delay, topology_file, flow_file, trace_file, trace_output_file;
+// fct 输出
 std::string fct_output_file = "fct.txt";
 std::string pfc_output_file = "pfc.txt";
 
@@ -126,12 +128,14 @@ struct FlowInput{
 FlowInput flow_input = {0};
 uint32_t flow_num;
 
+// 读流的特征
 void ReadFlowInput(){
 	if (flow_input.idx < flow_num){
 		flowf >> flow_input.src >> flow_input.dst >> flow_input.pg >> flow_input.dport >> flow_input.maxPacketCount >> flow_input.start_time;
 		NS_ASSERT(n.Get(flow_input.src)->GetNodeType() == 0 && n.Get(flow_input.dst)->GetNodeType() == 0);
 	}
 }
+// 流调度
 void ScheduleFlowInputs(){
 	while (flow_input.idx < flow_num && Seconds(flow_input.start_time) == Simulator::Now()){
 		uint32_t port = portNumder[flow_input.src][flow_input.dst]++; // get a new port number 
@@ -160,6 +164,7 @@ uint32_t ip_to_node_id(Ipv4Address ip){
 	return (ip.Get() >> 8) & 0xffff;
 }
 
+// queue pair完成
 void qp_finish(FILE* fout, Ptr<RdmaQueuePair> q){
 	uint32_t sid = ip_to_node_id(q->sip), did = ip_to_node_id(q->dip);
 	uint64_t base_rtt = pairRtt[sid][did], b = pairBw[sid][did];
@@ -179,6 +184,7 @@ void get_pfc(FILE* fout, Ptr<QbbNetDevice> dev, uint32_t type){
 	fprintf(fout, "%lu %u %u %u %u\n", Simulator::Now().GetTimeStep(), dev->GetNode()->GetId(), dev->GetNode()->GetNodeType(), dev->GetIfIndex(), type);
 }
 
+// 队列长度分布统计
 struct QlenDistribution{
 	vector<uint32_t> cnt; // cnt[i] is the number of times that the queue len is i KB
 
@@ -220,6 +226,7 @@ void monitor_buffer(FILE* qlen_output, NodeContainer *n){
 		Simulator::Schedule(NanoSeconds(qlen_mon_interval), &monitor_buffer, qlen_output, n);
 }
 
+// 计算路由表
 void CalculateRoute(Ptr<Node> host){
 	// queue for the BFS.
 	vector<Ptr<Node> > q;
@@ -300,7 +307,7 @@ void SetRoutingEntries(){
 	}
 }
 
-// take down the link between a and b, and redo the routing
+// take down (拆除) the link between a and b, and redo the routing
 void TakeDownLink(NodeContainer n, Ptr<Node> a, Ptr<Node> b){
 	if (!nbr2if[a][b].up)
 		return;
@@ -327,6 +334,7 @@ void TakeDownLink(NodeContainer n, Ptr<Node> a, Ptr<Node> b){
 	}
 }
 
+// 获取网卡速率
 uint64_t get_nic_rate(NodeContainer &n){
 	for (uint32_t i = 0; i < n.GetN(); i++)
 		if (n.Get(i)->GetNodeType() == 0)
@@ -662,7 +670,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-
+	// 开启动态pfc阈值
 	bool dynamicth = use_dynamic_pfc_threshold;
 
 	Config::SetDefault("ns3::QbbNetDevice::PauseTime", UintegerValue(pause_time));
@@ -678,6 +686,8 @@ int main(int argc, char *argv[])
 		IntHeader::mode = IntHeader::NORMAL;
 	else if (cc_mode == 10) // hpcc-pint
 		IntHeader::mode = IntHeader::PINT;
+	else if (cc_mode == 13)
+		IntHeader::mode = IntHeader::Gear;
 	else // others, no extra header
 		IntHeader::mode = IntHeader::NONE;
 
@@ -690,6 +700,7 @@ int main(int argc, char *argv[])
 
 	//SeedManager::SetSeed(time(NULL));
 
+	// 读拓扑文件，流结构，trace
 	topof.open(topology_file.c_str());
 	flowf.open(flow_file.c_str());
 	tracef.open(trace_file.c_str());
@@ -701,6 +712,7 @@ int main(int argc, char *argv[])
 
 	//n.Create(node_num);
 	std::vector<uint32_t> node_type(node_num, 0);
+	// switch的type是1， node的type是0
 	for (uint32_t i = 0; i < switch_num; i++)
 	{
 		uint32_t sid;
@@ -716,7 +728,9 @@ int main(int argc, char *argv[])
 			sw->SetAttribute("EcnEnabled", BooleanValue(enable_qcn));
 		}
 	}
-
+	
+	//
+	Config::SetDefault("ns3::TcpL4Protocol::SocketType", StringValue("ns3::" + tcpTypeId));
 
 	NS_LOG_INFO("Create nodes.");
 
