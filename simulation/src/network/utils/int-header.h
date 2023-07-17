@@ -80,6 +80,7 @@ public:
 		NORMAL = 0,
 		TS = 1,
 		PINT = 2,
+		GEAR = 3,
 		NONE
 	};
 	static Mode mode;
@@ -98,6 +99,11 @@ public:
 				uint8_t power_lo8, power_hi8;
 			};
 		}pint;
+		struct {
+			IntHop hop[maxHop];
+			uint16_t nhop;
+			uint64_t ts;
+		} gear;
 	};
 
 	IntHeader();

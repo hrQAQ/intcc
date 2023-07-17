@@ -20,6 +20,8 @@ uint32_t IntHeader::GetStaticSize(){
 		return sizeof(ts);
 	}else if (mode == PINT){
 		return sizeof(pint);
+	}else if (mode == GEAR){
+		return sizeof(gear.hop) + sizeof(gear.nhop) + sizeof(gear.ts);
 	}else {
 		return 0;
 	}
@@ -31,6 +33,10 @@ void IntHeader::PushHop(uint64_t time, uint64_t bytes, uint32_t qlen, uint64_t r
 		uint32_t idx = nhop % maxHop;
 		hop[idx].Set(time, bytes, qlen, rate);
 		nhop++;
+	} else if (mode == GEAR){
+		uint32_t idx = nhop % maxHop;
+		gear.hop[idx].Set(time, bytes, qlen, rate);
+		gear.nhop++;
 	}
 }
 
@@ -49,6 +55,13 @@ void IntHeader::Serialize (Buffer::Iterator start) const{
 			i.WriteU8(pint.power_lo8);
 		else if (pint_bytes == 2)
 			i.WriteU16(pint.power);
+	}else if (mode == GEAR){
+		for (uint32_t j = 0; j < maxHop; j++){
+			i.WriteU32(gear.hop[j].buf[0]);
+			i.WriteU32(gear.hop[j].buf[1]);
+		}
+		i.WriteU16(gear.nhop);
+		i.WriteU64(gear.ts);
 	}
 }
 
@@ -67,6 +80,13 @@ uint32_t IntHeader::Deserialize (Buffer::Iterator start){
 			pint.power_lo8 = i.ReadU8();
 		else if (pint_bytes == 2)
 			pint.power = i.ReadU16();
+	}else if (mode == GEAR) {
+		for (uint32_t j = 0; j < maxHop; j++){
+			gear.hop[j].buf[0] = i.ReadU32();
+			gear.hop[j].buf[1] = i.ReadU32();
+		}
+		gear.nhop = i.ReadU16();
+		gear.ts = i.ReadU64();
 	}
 	return GetStaticSize();
 }

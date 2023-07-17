@@ -131,7 +131,7 @@ namespace ns3
 											  MakeBooleanAccessor(&RdmaHw::m_rateBound),
 											  MakeBooleanChecker())
 								.AddAttribute("MultiRate",
-											  "Maintain multiple rates in HPCC",
+											  "Maintain multiple rates in `",
 											  BooleanValue(true),
 											  MakeBooleanAccessor(&RdmaHw::m_multipleRate),
 											  MakeBooleanChecker())
@@ -270,6 +270,10 @@ namespace ns3
 		else if (m_cc_mode == 10)
 		{
 			qp->hpccPint.m_curRate = m_bps;
+		}
+		else if (m_cc_mode == 13)
+		{
+			qp->intcc.m_curRate = m_bps;
 		}
 
 		// Notify Nic
@@ -422,6 +426,10 @@ namespace ns3
 			{
 				qp->hpccPint.m_curRate = dev->GetDataRate();
 			}
+			else if (m_cc_mode == 13)
+			{
+				qp->intcc.m_curRate = dev->GetDataRate();
+			}
 		}
 		return 0;
 	}
@@ -489,6 +497,9 @@ namespace ns3
 		{
 			HandleAckHpPint(qp, p, ch);
 		} 
+		else if(m_cc_mode == 13) {
+			HandleAckINTCC(qp, p, ch);
+		}
 		// ACK may advance the on-the-fly window, allowing more packets to send
 		dev->TriggerTransmit();
 		return 0;
@@ -501,15 +512,15 @@ namespace ns3
 			ReceiveUdp(p, ch);
 		}
 		else if (ch.l3Prot == 0xFF)
-		{ // CNP
+		{ // CNP cnp是一种控制包，用于通知发送端降低速率
 			ReceiveCnp(p, ch);
 		}
 		else if (ch.l3Prot == 0xFD)
-		{ // NACK
+		{ // NACK 用于通知发送端重传
 			ReceiveAck(p, ch);
 		}
 		else if (ch.l3Prot == 0xFC)
-		{ // ACK
+		{ // ACK 用于通知发送端接收成功
 			ReceiveAck(p, ch);
 		}
 		return 0;
@@ -1080,7 +1091,7 @@ namespace ns3
 	bool RdmaHw::IsDCFlow(Ptr<RdmaQueuePair> qp, CustomHeader &ch)
 	{
 		// 以current resolution ns 为单位
-		uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
+		uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.gear.ts;
 		if (rtt < 200 * qp->m_baseRtt)
 			return true;
 		return false;

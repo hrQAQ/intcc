@@ -4,3 +4,7 @@
 .DS_Store
 .lock-waf_linux2_build
 .waf*/
+mix/fct.txt
+mix/pfc.txt
+mix/qlen.txt
+mix/mix.tr
