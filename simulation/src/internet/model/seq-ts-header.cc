@@ -35,6 +35,8 @@ SeqTsHeader::SeqTsHeader ()
 {
 	if (IntHeader::mode == 1)
 		ih.ts = Simulator::Now().GetTimeStep();
+  else if(IntHeader::mode == 3)
+    ih.gear.ts = Simulator::Now().GetTimeStep();
 }
 
 void
