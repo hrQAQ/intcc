@@ -11,7 +11,7 @@
             "request": "launch",
             // my build folder is ${workspaceFolder}/build, substitute yours
             "program": "${workspaceFolder}/build/scratch/third",
-            "args": [],
+            "args": ["mix/config.txt"],
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
             "environment": [
