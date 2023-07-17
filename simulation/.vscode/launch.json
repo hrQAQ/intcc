@@ -10,11 +10,33 @@
             "type": "cppdbg",
             "request": "launch",
             // my build folder is ${workspaceFolder}/build, substitute yours
-            "program": "${workspaceFolder}/build/utils/ns3-dev-test-runner-debug",
+            "program": "${workspaceFolder}/build/scratch/third",
             "args": [],
-            "stopAtEntry": false,
+            "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
-            "environment": [],
+            "environment": [
+                //{"Name": "NS_LOG", "Value": "Debug"}],
+                {
+                    "Name": "PYTHONPATH",
+                    "Value": "/home/huangrui/miniconda3/envs/py27/bin/python"
+                },
+                {
+                    "Name": "LD_LIBRARY_PATH",
+                    "Value": "/home/huangrui/intcc/hpcc/simulation/build"
+                },
+                {
+                    "Name": "NS3_MODULE_PATH",
+                    "Value": "<from waf shell>"
+                },
+                {
+                    "Name": "NS3_EXECUTABLE_PATH",
+                    "Value": "<from waf shell>"
+                },
+                {
+                    "Name": "PATH",
+                    "Value": "<from waf shell>"
+                }
+            ],
             "externalConsole": false,
             "pipeTransport": {
                 "debuggerPath": "", // leave blank
@@ -27,11 +49,11 @@
                     "--interpreter=mi", // --interpreter lets vscode talk to gdb
                     "--args",
                     "%s",
-                    "--suite=<test-suite>", // must specify test suite here
+                    "mix/config.txt", // must specify test suite here
                     //"--verbose'",  // I don't think this will work in pipe mode, maybe
                     "'", // closing quote for command template
                     "--run",
-                    "scratch/third"
+                    "third"
                 ],
                 "pipeCwd": ""
             },
@@ -50,11 +72,11 @@
             "type": "cppdbg",
             "request": "launch",
             // my build folder is ${workspaceFolder}/build, substitute yours
-            "program": "${workspaceFolder}/build/srra",
+            "program": "${workspaceFolder}/build/scratch/third",
             "args": [
-                "--suite=<test-suite>" // specify test suite
+                "mix/config.txt"
             ],
-            "stopAtEntry": false,
+            "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
             // replace the values below with those found from running
             // $ waf shell
@@ -63,11 +85,11 @@
                 //{"Name": "NS_LOG", "Value": "Debug"}],
                 {
                     "Name": "PYTHONPATH",
-                    "Value": "<from waf shell>"
+                    "Value": "/home/huangrui/miniconda3/envs/py27/bin/python"
                 },
                 {
                     "Name": "LD_LIBRARY_PATH",
-                    "Value": "<from waf shell>"
+                    "Value": "/home/huangrui/intcc/hpcc/simulation/build"
                 },
                 {
                     "Name": "NS3_MODULE_PATH",
