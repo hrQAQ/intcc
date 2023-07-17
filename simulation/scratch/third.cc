@@ -17,25 +17,29 @@
 #undef PGO_TRAINING
 #define PATH_TO_PGO_CONFIG "path_to_pgo_config"
 
-#include <iostream>
+#include <ns3/rdma-client-helper.h>
+#include <ns3/rdma-client.h>
+#include <ns3/rdma-driver.h>
+#include <ns3/rdma.h>
+#include <ns3/sim-setting.h>
+#include <ns3/switch-node.h>
+#include <time.h>
+
 #include <fstream>
+#include <iostream>
 #include <unordered_map>
-#include <time.h> 
-#include "ns3/core-module.h"
-#include "ns3/qbb-helper.h"
-#include "ns3/point-to-point-helper.h"
+
 #include "ns3/applications-module.h"
-#include "ns3/internet-module.h"
+#include "ns3/core-module.h"
+#include "ns3/error-model.h"
+#include "ns3/flow-monitor-helper.h"
+#include "ns3/flow-monitor-module.h"
 #include "ns3/global-route-manager.h"
+#include "ns3/internet-module.h"
 #include "ns3/ipv4-static-routing-helper.h"
 #include "ns3/packet.h"
-#include "ns3/error-model.h"
-#include <ns3/rdma.h>
-#include <ns3/rdma-client.h>
-#include <ns3/rdma-client-helper.h>
-#include <ns3/rdma-driver.h>
-#include <ns3/switch-node.h>
-#include <ns3/sim-setting.h>
+#include "ns3/point-to-point-helper.h"
+#include "ns3/qbb-helper.h"
 
 using namespace ns3;
 using namespace std;
@@ -1027,13 +1031,18 @@ int main(int argc, char *argv[])
 	std::cout << "Running Simulation.\n";
 	fflush(stdout);
 	NS_LOG_INFO("Run Simulation.");
+	// install flow monitor on all nodes
+	// FlowMonitorHelper flowHelper;
+    // flowHelper.InstallAll();
+
 	Simulator::Stop(Seconds(simulator_stop_time));
 	Simulator::Run();
 	Simulator::Destroy();
 	NS_LOG_INFO("Done.");
 	fclose(trace_output);
-
+	// serialize flow monitor
+	// Ptr<FlowMonitor> monitor = flowHelper.GetMonitor();
+	// monitor->SerializeToXmlFile("./data/flow.xml", true, true);
 	endt = clock();
 	std::cout << (double)(endt - begint) / CLOCKS_PER_SEC << "\n";
-
 }
