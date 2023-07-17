@@ -31,21 +31,27 @@ if __name__ == "__main__":
 	port = 80
 	parser = OptionParser()
 	parser.add_option("-c", "--cdf", dest = "cdf_file", help = "the file of the traffic size cdf", default = "uniform_distribution.txt")
-	parser.add_option("-n", "--nhost", dest = "nhost", help = "number of hosts")
+	parser.add_option("--ndc", dest = "ndchost", help = "number of dc hosts")
+	parser.add_option("--nwan", dest = "nwanhost", help = "number of wan hosts")
 	parser.add_option("-l", "--load", dest = "load", help = "the percentage of the traffic load to the network capacity, by default 0.3", default = "0.3")
 	parser.add_option("-b", "--bandwidth", dest = "bandwidth", help = "the bandwidth of host link (G/M/K), by default 10G", default = "10G")
-	# parser.add_option("-p", "--proportion", )	
- 	parser.add_option("-t", "--time", dest = "time", help = "the total run time (s), by default 10", default = "10")
+	parser.add_option("--pdc", dest = "proportionOfDc", help = "number of copies of the traffic in data center, by default 1", default = "1")
+	parser.add_option("--pwan", dest = "proportionOfWan", help = "number of copies of the traffic in wan, by default 1", default = "1")
+	parser.add_option("-t", "--time", dest = "time", help = "the total run time (s), by default 10", default = "10")
 	parser.add_option("-o", "--output", dest = "output", help = "the output file", default = "tmp_traffic.txt")
 	options,args = parser.parse_args()
 
 	base_t = 2000000000
 
-	if not options.nhost:
-		print "please use -n to enter number of hosts"
+	if not options.ndchost or not options.nwanhost:
+		print "please use -ndc to enter number of dc hosts and -nwan to enter number of wan hosts"
 		sys.exit(0)
-	nhost = int(options.nhost)
+	ndchost = int(options.ndchost)
+	nwanhost = int(options.nwanhost)
+	nhost = ndchost + nwanhost
 	load = float(options.load)
+	proportionOfDc = int(options.proportionOfDc)
+	proportionOfWan = int(options.proportionOfWan)
 	bandwidth = translate_bandwidth(options.bandwidth)
 	time = float(options.time)*1e9 # translates to ns
 	output = options.output
@@ -76,15 +82,23 @@ if __name__ == "__main__":
 	n_flow_estimate = int(time / avg_inter_arrival * nhost)
 	n_flow = 0
 	ofile.write("%d \n"%n_flow_estimate)
-	host_list = [(base_t + int(poisson(avg_inter_arrival)), i) for i in range(nhost)]
+	# flow must src from dc host
+	host_list = [(base_t + int(poisson(avg_inter_arrival)), i) for i in range(ndchost)]
 	heapq.heapify(host_list)
+	idx = 0
+	proportionAll = proportionOfDc + proportionOfWan
+	dc_host = [i for i in range(nhost) if i < ndchost]
+	wan_host = [i for i in range(nhost) if i >= ndchost]
 	while len(host_list) > 0:
 		t,src = host_list[0]
 		inter_t = int(poisson(avg_inter_arrival))
-		new_tuple = (src, t + inter_t)
-		dst = random.randint(0, nhost-1)
-		while (dst == src):
-			dst = random.randint(0, nhost-1)
+		if (idx % proportionAll < proportionOfDc):
+			dst = random.choice(dc_host)
+			while (dst == src):
+				dst = random.choice(dc_host)
+		else:
+			dst = random.choice(wan_host)
+		idx = (idx + 1) % proportionAll
 		if (t + inter_t > time + base_t):
 			heapq.heappop(host_list)
 		else:
