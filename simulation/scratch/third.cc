@@ -125,12 +125,18 @@ std::vector<Ipv4Address> serverAddress;
 std::unordered_map<uint32_t, unordered_map<uint32_t, uint16_t> > portNumder;
 
 struct FlowInput{
-	uint32_t src, dst, pg, maxPacketCount, port, dport;
+	uint32_t src, dst, pg, port, dport;
+    uint64_t maxPacketCount;
 	double start_time;
-	uint32_t idx;
+    uint32_t idx;
 };
 FlowInput flow_input = {0};
 uint32_t flow_num;
+
+void PrintProgress(Time interval) {
+        std::cout << "Progress to " << Simulator::Now().GetSeconds() << " seconds simulation time" << std::endl;
+        Simulator::Schedule(interval, &PrintProgress, interval);
+}
 
 // 读流的特征
 void ReadFlowInput(){
@@ -139,6 +145,7 @@ void ReadFlowInput(){
 		NS_ASSERT(n.Get(flow_input.src)->GetNodeType() == 0 && n.Get(flow_input.dst)->GetNodeType() == 0);
 	}
 }
+
 // 流调度
 void ScheduleFlowInputs(){
 	while (flow_input.idx < flow_num && Seconds(flow_input.start_time) == Simulator::Now()){
@@ -146,6 +153,7 @@ void ScheduleFlowInputs(){
 		RdmaClientHelper clientHelper(flow_input.pg, serverAddress[flow_input.src], serverAddress[flow_input.dst], port, flow_input.dport, flow_input.maxPacketCount, has_win?(global_t==1?maxBdp:pairBdp[n.Get(flow_input.src)][n.Get(flow_input.dst)]):0, global_t==1?maxRtt:pairRtt[flow_input.src][flow_input.dst]);
 		ApplicationContainer appCon = clientHelper.Install(n.Get(flow_input.src));
 		appCon.Start(Time(0));
+		if (flow_input.src == 2) appCon.Stop(Time("4s"));
 
 		// get the next flow input
 		flow_input.idx++;
@@ -1018,13 +1026,13 @@ int main(int argc, char *argv[])
 
 	// schedule link down
 	if (link_down_time > 0){
-		Simulator::Schedule(Seconds(2) + MicroSeconds(link_down_time), &TakeDownLink, n, n.Get(link_down_A), n.Get(link_down_B));
+		Simulator::Schedule(Seconds(2) + Seconds(link_down_time), &TakeDownLink, n, n.Get(link_down_A), n.Get(link_down_B));
 	}
 
 	// schedule buffer monitor
 	FILE* qlen_output = fopen(qlen_mon_file.c_str(), "w");
 	Simulator::Schedule(NanoSeconds(qlen_mon_start), &monitor_buffer, qlen_output, &n);
-
+	Simulator::Schedule(Seconds(0.1), &PrintProgress, Seconds(0.1));
 	//
 	// Now, do the actual simulation.
 	//

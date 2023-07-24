@@ -103,14 +103,33 @@ def mix_topology_gen(config_file_name, num_host_per_rack, num_rack, num_agg, num
 
 if __name__== "__main__" :
 
+    # mix_topology_gen(
+    #     config_file_name="mix.txt", 
+    #     num_host_per_rack=8, 
+    #     num_rack=16, 
+    #     num_agg=16,
+    #     num_core=8,
+    #     num_wan_switch=4,
+    #     num_wan_host=4,
+    #     bandwidth_dchost_to_rack="10Gbps",
+    #     bandwidth_rack_to_agg="10Gbps",
+    #     bandwidth_agg_to_core="10Gbps",
+    #     bandwidth_core_to_wanswitch="10Gbps",
+    #     bandwidth_wanswitch_to_wanhost="10Gbps",
+    #     delay_dc="1000ns",
+    #     delay_wan="10ms",
+    #     error_rate_dc="0.000000",
+    #     error_rate_wan="0.000000",
+    #     pod=4)
+    
     mix_topology_gen(
         config_file_name="mix.txt", 
         num_host_per_rack=8, 
         num_rack=16, 
         num_agg=16,
         num_core=8,
-        num_wan_switch=4,
-        num_wan_host=4,
+        num_wan_switch=16,
+        num_wan_host=128,
         bandwidth_dchost_to_rack="10Gbps",
         bandwidth_rack_to_agg="10Gbps",
         bandwidth_agg_to_core="10Gbps",

@@ -444,7 +444,7 @@ namespace ns3
 		Ptr<RdmaQueuePair> qp = GetQp(ch.sip, port, qIndex);
 		if (qp == NULL)
 		{
-			std::cout << "ERROR: "
+			std::cout << "ERROR: " << "Time: " << Simulator::Now().GetSeconds() << " "
 					  << "node:" << m_node->GetId() << ' ' << (ch.l3Prot == 0xFC ? "ACK" : "NACK") << " NIC cannot find the flow\n";
 			return 0;
 		}
@@ -1218,6 +1218,8 @@ namespace ns3
 	void RdmaHw::UpdateRateCross(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react)
 	{
 		// 判断是否有更新, 没有更新且不需要updata W^c则跳过速率调整
+		uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
+		uint64_t fairnessArg = std::min(rtt/qp->m_baseRtt, uint64_t(1.0));
 		bool updated[IntHeader::maxHop], updated_any = false;
 		IntHeader &ih = ch.ack.ih;
 		for (uint32_t i = 0; i < ih.nhop; i++)
@@ -1233,6 +1235,7 @@ namespace ns3
 		// 更新Utilization
 		ComptUtilization(qp, p, ch);
 		// 第二个条件: 非第一个RTT才更新
+		
 		if (updated_any && !(qp->intcc.m_maxU == 0.0))
 		{
 			DataRate new_rate;
@@ -1244,19 +1247,19 @@ namespace ns3
 			if (prev == 0.0)
 			{
 				// TODO: m_rai前面要加一个系数，需要计算dc段rtt; DataRate好像没有重写/运算符
-				new_rate = qp->intcc.m_curRate * ((2 * m_targetUtil - u) / u) + m_rai;
+				new_rate = qp->intcc.m_curRate * ((2 * m_targetUtil - u) / u) + fairnessArg*m_rai;
 				qp->intcc.m_lastUtilization = u;
 			}
 			else if (u < (m_targetUtil - m_epsilon) || (u > m_targetUtil + m_epsilon))
 			{
 				double para = (2 * m_targetUtil - u) / u * m_targetUtil / u * prev / (2 * m_targetUtil - prev);
-				new_rate = qp->intcc.m_curRate * para + m_rai;
+				new_rate = qp->intcc.m_curRate * para + fairnessArg*m_rai;
 				qp->intcc.m_lastUtilization = u;
 			}
 			else
 			{
 				double para = m_targetUtil / u * prev / (2 * m_targetUtil - prev);
-				new_rate = qp->intcc.m_curRate * para + m_rai;
+				new_rate = qp->intcc.m_curRate * para + fairnessArg*m_rai;
 			}
 			if (!fast_react)
 			{

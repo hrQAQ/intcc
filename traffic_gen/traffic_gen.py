@@ -78,7 +78,11 @@ if __name__ == "__main__":
 
 	# generate flows
 	avg = customRand.getAvg()
+	print "avg: ", avg
+	print "bandwidth: ", bandwidth
+	print "load: ", load
 	avg_inter_arrival = 1/(bandwidth*load/8./avg)*1000000000
+	print "avg_inter_arrival: ", avg_inter_arrival
 	n_flow_estimate = int(time / avg_inter_arrival * nhost)
 	n_flow = 0
 	ofile.write("%d \n"%n_flow_estimate)

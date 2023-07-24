@@ -1,0 +1,6 @@
+/data/
+analysis/*.txt
+analysis/Figtures/
+analysis/traceinfo/
+analysis/FCTResult/
+simulation/mix/*.txt

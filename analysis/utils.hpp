@@ -68,9 +68,9 @@ static inline FlowInt GetStandardFlowInt(ns3::TraceFormat &tr){
 
 static inline char l3ProtToChar(uint8_t p){
 	switch (p){
-		case 0x6:
+		case 0x6:	// TCP
 			return 'T';
-		case 0x11:
+		case 0x11:	// UDP
 			return 'U';
 		case 0xFC: // ACK
 			return 'A';
