@@ -4,6 +4,7 @@ import re
 
 subdir="exit/"
 FIGDIR = "/home/huangrui/intcc/hpcc/analysis/Figtures/" + subdir
+wan_batch = 10
 
 def get_css():
     marker = ''
@@ -88,11 +89,17 @@ if "load" in subdir:
                         ywan.append(float(line.split()[1])/1024/1024)
         else:
             print("No file: " + "traceinfo/" + load + method + Throuput_WAN)
+        # each 10 items in WAN aggregate to one item, the x-index is the first item's x-index
+        xwan_new = []
+        ywan_new = []
+        for i in range(0, len(xwan), wan_batch):
+            xwan_new.append(xwan[i])
+            ywan_new.append(sum(ywan[i:i+wan_batch])/wan_batch)
         plt.figure(figsize=(6, 4))
         colors, font = get_css()
         plt.title(method + ': Throuput of DC and WAN', font)
         plt.rc("font", **font)
-        plot_throuput(xdc, ydc, xwan, ywan, colors, font, method, load_ratio)
+        plot_throuput(xdc, ydc, xwan_new, ywan_new, colors, font, method, load_ratio)
 
     print("Delay with load ratio: " + str(load_ratio))
     for method in methods:
@@ -118,18 +125,24 @@ if "load" in subdir:
                         ywan.append(float(line.split()[1])/1000)
         else:
             print("No file: " + "traceinfo/" + load + method + Delay_WAN)
+        # each 10 items in WAN aggregate to one item, the x-index is the first item's x-index
+        xwan_new = []
+        ywan_new = []
+        for i in range(0, len(xwan), wan_batch):
+            xwan_new.append(xwan[i])
+            ywan_new.append(sum(ywan[i:i+wan_batch])/wan_batch)
         plt.figure(figsize=(6, 4))
         colors, font = get_css()
         plt.title(method + ': Delay of DC and WAN', font)
         plt.rc("font", **font)
-        plot_delay(xdc, ydc, xwan, ywan, colors, font, method, load_ratio)
+        plot_delay(xdc, ydc, xwan_new, ywan_new, colors, font, method, load_ratio)
 
 
 def plot_throuput_flow(x1, y1, x2, y2, x3, y3, colors, font, method):
     print("[" + method + "] ")
     plt.plot(x1, y1, color=colors[0], linestyle='-', marker='', label='DC', linewidth=1)
     plt.plot(x2, y2, color=colors[4], linestyle='-', marker='', label='WAN', linewidth=1)
-    plt.plot(x3, y3, color=colors[3], linestyle='-', marker='', label='ADD', linewidth=1)
+    # plt.plot(x3, y3, color=colors[3], linestyle='-', marker='', label='ADD', linewidth=1)
     plt.xlabel('Time (us)', font)
     plt.ylabel('Throuput (MB)', font)
     # plt.xticks([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
@@ -153,44 +166,54 @@ def plot_delay_flow(x1, y1, x2, y2, x3, y3, colors, font, method):
 
 if "start" in subdir or "exit" in subdir:
     print("Throuput of three flow")
-    start_time = 3000000000
+    start_time = 1000000000
     end_time = 4000000000
     for method in methods:
-    #     x1 = []
-    #     y1 = []
-    #     x2 = []
-    #     y2 = []
-    #     x3 = []
-    #     y3 = []
-    #     flows = ["_thoughput_flow_1.txt", "_thoughput_flow_2.txt", "_thoughput_flow_3.txt"]
-    #     if os.path.exists("traceinfo/" + subdir + method + flows[0]):
-    #         with open("traceinfo/" + subdir + method + flows[0], 'r') as f:
-    #             data = f.read().splitlines()
-    #             for line in data:
-    #                 if(float(line.split()[0]) < end_time and float(line.split()[0]) > start_time):
-    #                     x1.append(float(line.split()[0])/1000)
-    #                     y1.append(float(line.split()[1])/1024/1024)
-    #     if os.path.exists("traceinfo/" + subdir + method + flows[1]):
-    #         with open("traceinfo/" + subdir + method + flows[1], 'r') as f:
-    #             data = f.read().splitlines()
-    #             for line in data:
-    #                 if(float(line.split()[0]) < end_time and float(line.split()[0]) > start_time):
-    #                     x2.append(float(line.split()[0])/1000)
-    #                     y2.append(float(line.split()[1])/1024/1024)
-    #     if os.path.exists("traceinfo/" + subdir + method + flows[2]):
-    #         with open("traceinfo/" + subdir + method + flows[2], 'r') as f:
-    #             data = f.read().splitlines()
-    #             for line in data:
-    #                 # 2050000000
-    #                 if(float(line.split()[0]) < end_time and float(line.split()[0]) > start_time):
-    #                     x3.append(float(line.split()[0])/1000)
-    #                     y3.append(float(line.split()[1])/1024/1024)
-    #     plt.figure(figsize=(6, 4))
-    #     colors, font = get_css()
-    #     plt.title(method + ': Throuput of DC and WAN', font)
-    #     plt.rc("font", **font)
-    #     plot_throuput_flow(x1, y1, x2, y2, x3, y3, colors, font, method)
-
+        x1 = []
+        y1 = []
+        x2 = []
+        y2 = []
+        x3 = []
+        y3 = []
+        flows = ["_thoughput_flow_1.txt", "_thoughput_flow_2.txt", "_thoughput_flow_3.txt"]
+        if os.path.exists("traceinfo/" + subdir + method + flows[0]):
+            with open("traceinfo/" + subdir + method + flows[0], 'r') as f:
+                data = f.read().splitlines()
+                for line in data:
+                    if(float(line.split()[0]) < end_time and float(line.split()[0]) > start_time):
+                        x1.append(float(line.split()[0])/1000)
+                        y1.append(float(line.split()[1])/1024/1024)
+        if os.path.exists("traceinfo/" + subdir + method + flows[1]):
+            with open("traceinfo/" + subdir + method + flows[1], 'r') as f:
+                data = f.read().splitlines()
+                for line in data:
+                    if(float(line.split()[0]) < end_time and float(line.split()[0]) > start_time):
+                        x2.append(float(line.split()[0])/1000)
+                        y2.append(float(line.split()[1])/1024/1024)
+        # each 10 items in WAN aggregate to one item, the x-index is the first item's x-index
+        x2_new = []
+        y2_new = []
+        for i in range(0, len(x2), wan_batch):
+            x2_new.append(x2[i])
+            y2_new.append(sum(y2[i:i+wan_batch])/wan_batch)
+        if os.path.exists("traceinfo/" + subdir + method + flows[2]):
+            with open("traceinfo/" + subdir + method + flows[2], 'r') as f:
+                data = f.read().splitlines()
+                for line in data:
+                    # 2050000000
+                    if(float(line.split()[0]) < end_time and float(line.split()[0]) > start_time):
+                        x3.append(float(line.split()[0])/1000)
+                        y3.append(float(line.split()[1])/1024/1024)
+        x3_new = []
+        y3_new = []
+        for i in range(0, len(x3), wan_batch):
+            x3_new.append(x3[i])
+            y3_new.append(sum(y3[i:i+wan_batch])/wan_batch)
+        plt.figure(figsize=(6, 4))
+        colors, font = get_css()
+        plt.title(method + ': Throuput of DC and WAN', font)
+        plt.rc("font", **font)
+        plot_throuput_flow(x1, y1, x2_new, y2_new, x3_new, y3_new, colors, font, method)
     print("Delay of three flow")
     start_time = 2000000000
     end_time = 5000000000
@@ -216,6 +239,11 @@ if "start" in subdir or "exit" in subdir:
                     if(float(line.split()[0]) < end_time and float(line.split()[0]) > start_time):
                         x2.append(float(line.split()[0])/1000)
                         y2.append(float(line.split()[1])/1000)
+        x2_new = []
+        y2_new = []
+        for i in range(0, len(x2), wan_batch):
+            x2_new.append(x2[i])
+            y2_new.append(sum(y2[i:i+wan_batch])/wan_batch)
         if os.path.exists("traceinfo/" + subdir + method + flows[2]):
             with open("traceinfo/" + subdir + method + flows[2], 'r') as f:
                 data = f.read().splitlines()
@@ -223,9 +251,14 @@ if "start" in subdir or "exit" in subdir:
                     if(float(line.split()[0]) < end_time and float(line.split()[0]) > start_time):
                         x3.append(float(line.split()[0])/1000)
                         y3.append(float(line.split()[1])/1024/1024)
+        x3_new = []
+        y3_new = []
+        for i in range(0, len(x3), wan_batch):
+            x3_new.append(x3[i])
+            y3_new.append(sum(y3[i:i+wan_batch])/wan_batch)
         plt.figure(figsize=(6, 4))
         colors, font = get_css()
         plt.title(method + ': Throuput of DC and WAN', font)
         plt.rc("font", **font)
-        plot_delay_flow(x1, y1, x2, y2, x3, y3, colors, font, method)
+        plot_delay_flow(x1, y1, x2_new, y2_new, x3_new, y3_new, colors, font, method)
 
