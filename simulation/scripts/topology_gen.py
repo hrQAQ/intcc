@@ -1,168 +1,188 @@
-import os
+# encoding: utf-8
+from typing import List
+from enum import Enum, unique
 
-def mix_topology_gen(config_file_name, num_host_per_rack, num_rack, num_agg, num_core, num_wan_switch, num_wan_host, bandwidth_dchost_to_rack, bandwidth_rack_to_agg, bandwidth_agg_to_core, bandwidth_core_to_wanswitch, bandwidth_wanswitch_to_wanhost, delay_dc, delay_wan, error_rate_dc, error_rate_wan, pod):
-    """
-    Generate topology for FatTree-WAN mixed network, and write to a config file.
-    [this topology is a fat tree with WAN switches and hosts connected to the core switches]
-    :param config_file_name: name of the config file
-    :param num_host_per_rack: number of hosts per rack
-    :param num_rack: number of racks in fat tree (num of ToR switches)
-    :param num_agg: number of aggregation switches
-    :param num_core: number of core switches
-    :param num_wan_switch: number of WAN switches
-    :param num_wan_host: number of WAN hosts
-    :param bandwidth_dchost_to_rack: bandwidth from dc hosts to racks
-    :param bandwidth_rack_to_agg: bandwidth from racks to aggregation switches
-    :param bandwidth_agg_to_core: bandwidth from aggregation switches to core switches
-    :param bandwidth_core_to_wanswitch: bandwidth from core switches to WAN switches
-    :param bandwidth_wanswitch_to_wanhost: bandwidth from WAN switches to WAN hosts
-    :param delay_dc: delay of dc links
-    :param delay_wan: delay of WAN links
-    :param error_rate_dc: error rate of dc hosts
-    :param error_rate_wan: error rate of WAN hosts
-    :param pod: number of pods in fat tree
-    :return: None
+@unique
+class NodeType(Enum):
+    DC_HOST = 1
+    WAN_HOST = 2
+    DC_TOR = 3
+    DC_AGG = 4
+    DC_CORE = 5
+    WAN_TOR = 6
+    WAN_AGG = 7
     
+@unique
+class LinkType(Enum):
+    """LinkType describe the type of links between two groups of nodes
+
+    Args:
+        Enum (FULL_CONNECTION): Fully connected
+        Enum (LESS_TO_MORE_PARTITION): partition the dst nodes into several groups, and each group connect to one unique src node, note that the number of dst nodes should be a multiple of the number of src nodes
+    """
+    FULL_CONNECTION = 1
+    LESS_TO_MORE_PARTITION = 2
+
+class Node:
+    def __init__(self, label: str, node_id: int, switch_type: NodeType):
+        self.label = label
+        self.node_id = node_id
+        self.switch_type = switch_type
+    
+    def __str__(self):
+        return self.label + " " + str(self.node_id) + " " + str(self.switch_type)
+    
+class Links:
+    """
+    Describe links between two groups of nodes
+    """
+    def __init__(self, src: List[Node], dst: List[Node], rate: str, delay: str, error_rate: str, link_type: LinkType):
+        self.src = src
+        self.dst = dst
+        self.rate = rate
+        self.delay = delay
+        self.error_rate = error_rate
+        self.link_type = link_type
+    
+    def __str__(self):
+        outStream = ""
+        if(self.link_type == LinkType.FULL_CONNECTION):
+            for src_node in self.src:
+                for dst_node in self.dst:
+                    outStream += str(src_node.node_id) + " " + str(dst_node.node_id) + " " + str(self.rate) + " " + str(self.delay) + " " + str(self.error_rate) + "\n"
+        if(self.link_type == LinkType.LESS_TO_MORE_PARTITION):
+            if (__debug__):
+                print("src len: " + str(len(self.src)))
+                print("dst len: " + str(len(self.dst)))
+                print("partition size: " + str(int(len(self.dst) / len(self.src))))
+            partition_size = int(len(self.dst) / len(self.src))
+            
+            for i in range(len(self.src)):
+                src_node : Node = self.src[i]
+                for j in range(partition_size):
+                    dst_node : Node = self.dst[i * partition_size + j]
+                    outStream += str(src_node.node_id) + " " + str(dst_node.node_id) + " " + str(self.rate) + " " + str(self.delay) + " " + str(self.error_rate) + "\n"
+        return outStream
+        
+    def link_cnt(self):
+        if(self.link_type == LinkType.FULL_CONNECTION):
+            return len(self.src) * len(self.dst)
+        if(self.link_type == LinkType.LESS_TO_MORE_PARTITION):
+            return len(self.dst)
+    
+def mix_topology_gen(config_file_name: str):
+    """
+    [Using Nodes-Links data structure]
+    generate non-congestion topology for FatTree-WAN mixed network, which has a same fat tree topology with WAN switches and hosts connected to the core switches.
+    This topology satisfies the following conditions:
+        1. agg = tor = rack
+        2. agg and tor are fully connected
+        3. agg and core connect by less to more partition mode
+        4. tor and host connect by one to all mode
     Note that:
-    1) the node is numbered from 0 to N-1, where N is the total number of nodes.
-    2) 我们先对dc\wan host进行编号，然后对switch进行编号
-    3) config file format:
-        First line: total node #, switch node #, link #
-        Second line: switch node IDs...
-        src0 dst0 rate delay error_rate
-        src1 dst1 rate delay error_rate
+        1. Non-congestion topology should be calulated by the user.
+        2. In this topology, we mirror the fat tree topology to generate the WAN topology.(In order to avoid oversubscription)
     """
-    # open config file
-    config_file = open(config_file_name, 'w')
-    cnt_link = 0;
-    idx = 0;
-    # dc host idx from 0 to num_rack * num_host_per_rack - 1
-    dc_host_idx = [i for i in range(num_rack * num_host_per_rack)]
-    idx += num_rack * num_host_per_rack
-    # wan host idx from num_rack * num_host_per_rack to num_rack * num_host_per_rack + num_wan_host - 1
-    wan_host_idx = [i for i in range(idx, idx + num_wan_host)]
-    idx += num_wan_host
-    dc_ToR_idx = [i for i in range(idx, idx + num_rack)]
-    idx += num_rack
-    dc_Agg_idx = [i for i in range(idx, idx + num_agg)]
-    idx += num_agg
-    dc_Core_idx = [i for i in range(idx, idx + num_core)]
-    idx += num_core
-    wan_switch_idx = [i for i in range(idx, idx + num_wan_switch)]
-    idx += num_wan_switch
-    
-    # 1.write dc host to rack links to config file
-    for i in range(num_rack):
-        for j in range(num_host_per_rack):
-            config_file.write(str(dc_host_idx[i * num_host_per_rack + j]) + " " + str(dc_ToR_idx[i]) + " " + bandwidth_dchost_to_rack + " " + delay_dc + " " + error_rate_dc + "\n")
-            cnt_link+=1
-    # 2.write rack to agg links to config file
-    rack_per_pod = int(num_rack / pod)
-    agg_per_pod = int(num_agg / pod)
-    for i in range(pod): 
+    # config args
+    # [DC env]: 8 core switches, 4 pods, 4 aggregation switches per pod, 4 ToR switches per pod, 8 hosts per ToR switch
+    # [WAN env]: 4 WAN pods, 4 WAN aggregation switches per pod, 4 WAN ToR switches per pod, 8 WAN hosts per ToR switch
+    core_num = 8
+    pods = 4
+    host_per_rack = 8
+    agg_per_pod = 4
+    tor_per_pod = agg_per_pod
+    rack_per_pod = tor_per_pod
+    base_idx = 0
+    # ------------------- Generate Nodes -------------------
+    DC_Hosts : List[Node] = []
+    for i in range(pods):
         for j in range(rack_per_pod):
-            for k in range(agg_per_pod):
-                config_file.write(str(dc_ToR_idx[i * rack_per_pod + j]) + " " + str(dc_Agg_idx[i * agg_per_pod + k]) + " " + bandwidth_rack_to_agg + " " + delay_dc + " " + error_rate_dc + "\n")
-                cnt_link+=1
-    # 3.write agg to core links to config file
-    partition_size = int(num_core/agg_per_pod)
-    for i in range(pod):
+            for k in range(host_per_rack):
+                label = "DC_Host_" + str(i) + "_" + str(j) + "_" + str(k)
+                DC_Hosts.append(Node(label, base_idx, NodeType.DC_HOST))
+                base_idx += 1
+    WAN_Hosts : List[Node] = []
+    for i in range(pods):
+        for j in range(rack_per_pod):
+            for k in range(host_per_rack):
+                label = "WAN_Host_" + str(i) + "_" + str(j) + "_" + str(k)
+                WAN_Hosts.append(Node(label, base_idx, NodeType.WAN_HOST))
+                base_idx += 1
+    DC_ToR : List[Node] = []
+    for i in range(pods):
+        for j in range(tor_per_pod):
+            label = "DC_ToR_" + str(i) + "_" + str(j)
+            DC_ToR.append(Node(label, base_idx, NodeType.DC_TOR))
+            base_idx += 1
+    WAN_ToR : List[Node] = []
+    for i in range(pods):
+        for j in range(tor_per_pod):
+            label = "WAN_ToR_" + str(i) + "_" + str(j)
+            WAN_ToR.append(Node(label, base_idx, NodeType.WAN_TOR))
+            base_idx += 1
+    DC_Agg : List[Node] = []
+    for i in range(pods):
         for j in range(agg_per_pod):
-            for k in range(partition_size):
-                config_file.write(str(dc_Agg_idx[i * agg_per_pod + j]) + " " + str(dc_Core_idx[j * partition_size + k]) + " " + bandwidth_agg_to_core + " " + delay_dc + " " + error_rate_dc + "\n")
-                cnt_link+=1
-    # 4.write core to wan switch links to config file
-    for i in range(num_core):
-        for j in range(num_wan_switch):
-            config_file.write(str(dc_Core_idx[i]) + " " + str(wan_switch_idx[j]) + " " + bandwidth_core_to_wanswitch + " " + delay_wan + " " + error_rate_wan + "\n")
-            cnt_link+=1
-    # 5.write wan switch to wan host links to config file
-    for i in range(num_wan_switch):
-        for j in range(num_wan_host):
-            config_file.write(str(wan_switch_idx[i]) + " " + str(wan_host_idx[j]) + " " + bandwidth_wanswitch_to_wanhost + " " + delay_wan + " " + error_rate_wan + "\n")
-            cnt_link+=1
-    # 6.write total node #, switch node #, link # to config file
-    # 以append的方式写入文件最前方，不能覆盖最前面的内容
-    config_file = open(config_file_name, 'r+')
-    content = config_file.read()
-    config_file.seek(0, 0)
-    config_file.write(str(idx) + " " + str(idx - num_wan_host - num_host_per_rack * num_rack) + " " + str(cnt_link) + "\n")
-    # 7.write switch node IDs to config file
-    for i in dc_ToR_idx:
-        config_file.write(str(i) + " ")
-    for i in dc_Agg_idx:
-        config_file.write(str(i) + " ")
-    for i in dc_Core_idx:
-        config_file.write(str(i) + " ")
-    for i in wan_switch_idx:
-        config_file.write(str(i) + " ")
-    config_file.write("\n")
-    config_file.write(content)
-    config_file.close()
-    return
+            label = "DC_Agg_" + str(i) + "_" + str(j)
+            DC_Agg.append(Node(label, base_idx, NodeType.DC_AGG))
+            base_idx += 1
+    WAN_Agg : List[Node] = []
+    for i in range(pods):
+        for j in range(agg_per_pod):
+            label = "WAN_Agg_" + str(i) + "_" + str(j)
+            WAN_Agg.append(Node(label, base_idx, NodeType.WAN_AGG))
+            base_idx += 1
+    DC_Core : List[Node] = []     
+    for i in range(core_num):
+        label = "DC_Core_" + str(i)
+        DC_Core.append(Node(label, base_idx, NodeType.DC_CORE))
+        base_idx += 1
+    all_dc_switches : List[Node] = DC_Core + DC_Agg + DC_ToR
+    all_wan_switches : List[Node] = WAN_ToR + WAN_Agg   
+    # ------------------- Generate Links -------------------
+    # Rack to ToR
+    DCHost_To_DCToR : List[Links] = []     
+    for i in range(pods):
+        for j in range(tor_per_pod):
+            for k in range(host_per_rack):
+                DCHost_To_DCToR.append(Links(DC_Hosts[i*j*host_per_rack:(i*j+1)*host_per_rack], [DC_ToR[i*tor_per_pod+j]], "10Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
+    WANHost_To_WANToR : List[Links] = []
+    for i in range(pods):
+        for j in range(tor_per_pod):
+            for k in range(host_per_rack):
+                WANHost_To_WANToR.append(Links(WAN_Hosts[i*j*host_per_rack:(i*j+1)*host_per_rack], [WAN_ToR[i*tor_per_pod+j]], "10Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
+    DCToR_To_DCAgg : List[Links] = []
+    for i in range(pods):
+        DCToR_To_DCAgg.append(Links(DC_ToR[i*tor_per_pod : (i+1)*tor_per_pod], DC_Agg[i*agg_per_pod : (i+1)*agg_per_pod], "40Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
+    WANToR_To_WANAgg : List[Links] = []
+    for i in range(pods):
+        WANToR_To_WANAgg.append(Links(WAN_ToR[i*tor_per_pod : (i+1)*tor_per_pod], WAN_Agg[i*agg_per_pod : (i+1)*agg_per_pod], "40Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
+    DCAgg_To_DCCore : List[Links] = []
+    for i in range(pods):
+        DCAgg_To_DCCore.append(Links(DC_Agg[i*agg_per_pod : (i+1)*agg_per_pod], DC_Core, "40Gbps", "1000ns", "0.000000", LinkType.LESS_TO_MORE_PARTITION))
+    WANAgg_To_DCCore : List[Links] = []
+    for i in range(pods):
+        WANAgg_To_DCCore.append(Links(WAN_Agg[i*agg_per_pod : (i+1)*agg_per_pod], DC_Core,  "40Gbps", "1000ns", "0.000000", LinkType.LESS_TO_MORE_PARTITION))
+    all_links : List[Links] = DCHost_To_DCToR + WANHost_To_WANToR + DCToR_To_DCAgg + WANToR_To_WANAgg + DCAgg_To_DCCore + WANAgg_To_DCCore      
+    # ------------------- Generate Config File -------------------
+    with open(config_file_name, 'w') as f:
+        nodes_num = len(DC_Hosts) + len(WAN_Hosts) + len(all_dc_switches) + len(all_wan_switches)
+        switch_num = len(all_dc_switches) + len(all_wan_switches)
+        link_num = 0
+        for link in all_links:
+            link_num += link.link_cnt()
+        f.write(str(nodes_num) + " " + str(switch_num) + " " + str(link_num) + "\n")
+        for switch in all_dc_switches:
+            f.write(str(switch.node_id) + " ")
+        f.write("\n")
+        for switch in all_wan_switches:
+                f.write(str(switch.node_id) + " ")
+        f.write("\n")
+        for link in all_links:
+            f.write(str(link))
+    
 
 if __name__== "__main__" :
+    mix_topology_gen(config_file_name="mix.txt")
 
-    # mix_topology_gen(
-    #     config_file_name="mix.txt", 
-    #     num_host_per_rack=8, 
-    #     num_rack=16, 
-    #     num_agg=16,
-    #     num_core=8,
-    #     num_wan_switch=4,
-    #     num_wan_host=4,
-    #     bandwidth_dchost_to_rack="10Gbps",
-    #     bandwidth_rack_to_agg="10Gbps",
-    #     bandwidth_agg_to_core="10Gbps",
-    #     bandwidth_core_to_wanswitch="10Gbps",
-    #     bandwidth_wanswitch_to_wanhost="10Gbps",
-    #     delay_dc="1000ns",
-    #     delay_wan="10ms",
-    #     error_rate_dc="0.000000",
-    #     error_rate_wan="0.000000",
-    #     pod=4)
-    
-    mix_topology_gen(
-        config_file_name="mix.txt", 
-        num_host_per_rack=8, 
-        num_rack=16, 
-        num_agg=16,
-        num_core=8,
-        num_wan_switch=16,
-        num_wan_host=128,
-        bandwidth_dchost_to_rack="10Gbps",
-        bandwidth_rack_to_agg="10Gbps",
-        bandwidth_agg_to_core="10Gbps",
-        bandwidth_core_to_wanswitch="10Gbps",
-        bandwidth_wanswitch_to_wanhost="10Gbps",
-        delay_dc="1000ns",
-        delay_wan="10ms",
-        error_rate_dc="0.000000",
-        error_rate_wan="0.000000",
-        pod=4)
-    
-    # Hpcc FatTree topology [generate for validation this script]
-    # mix_topology_gen(
-    #     config_file_name="mix.txt", 
-    #     num_host_per_rack=16, 
-    #     num_rack=20, 
-    #     num_agg=20,
-    #     num_core=16,
-    #     num_wan_switch=4,
-    #     num_wan_host=4,
-    #     bandwidth_dchost_to_rack="10Gbps",
-    #     bandwidth_rack_to_agg="10Gbps",
-    #     bandwidth_agg_to_core="10Gbps",
-    #     bandwidth_core_to_wanswitch="10Gbps",
-    #     bandwidth_wanswitch_to_wanhost="10Gbps",
-    #     delay_dc="1000ns",
-    #     delay_wan="10ms",
-    #     error_rate_dc="0.000000",
-    #     error_rate_wan="0.000000",
-    #     pod=4)
-        
-        
-        
-        
-    
-    
+

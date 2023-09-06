@@ -3,16 +3,16 @@ USE_DYNAMIC_PFC_THRESHOLD 1
 
 PACKET_PAYLOAD_SIZE 1000
 
-TOPOLOGY_FILE mix/mix.txt
-FLOW_FILE mix/load5:1.txt
-TRACE_FILE mix/trace.txt
-TRACE_OUTPUT_FILE ../data/load5:1/GEAR.tr
-FCT_OUTPUT_FILE ../data/load5:1/GEAR.fct
-PFC_OUTPUT_FILE ../data/load5:1/GEAR.pfc
-QLEN_MON_FILE ../data/load5:1/GEAR.qlen
+TOPOLOGY_FILE mix/topology/fat.txt
+FLOW_FILE mix/flow/fat-flow.txt
+TRACE_FILE mix/trace/fat-trace.txt
+TRACE_OUTPUT_FILE ../data/testACK/HPCC.tr
+FCT_OUTPUT_FILE ../data/testACK/HPCC.fct
+PFC_OUTPUT_FILE ../data/testACK/HPCC.pfc
+QLEN_MON_FILE ../data/testACK/HPCC.qlen
 QLEN_MON_START 2000000000
 QLEN_MON_END 2010000000
-CC_MODE 13
+CC_MODE 3
 
 SIMULATOR_STOP_TIME 4.00
 

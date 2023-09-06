@@ -2,5 +2,5 @@
 analysis/*.txt
 analysis/Figtures/
 analysis/traceinfo/
-analysis/FCTResult/
+analysis/FCTResults/
 simulation/mix/*.txt
