@@ -5,6 +5,12 @@ import heapq
 from optparse import OptionParser
 from custom_rand import CustomRand
 
+##################################
+# Usage: 
+#	python traffic_gen.py -c FbHdp_distribution.txt --ndc 128 --nwan 128 -l 0.2 -b 10G -t 0.1 --pdc 1 --pwan 1 -o hdp_mix_0.2_10G_0.1_1:1.txt
+##################################
+
+
 class Flow:
 	def __init__(self, src, dst, size, t):
 		self.src, self.dst, self.size, self.t = src, dst, size, t
@@ -28,7 +34,6 @@ def poisson(lam):
 	return -math.log(1-random.random())*lam
 
 if __name__ == "__main__":
-	port = 80
 	parser = OptionParser()
 	parser.add_option("-c", "--cdf", dest = "cdf_file", help = "the file of the traffic size cdf", default = "uniform_distribution.txt")
 	parser.add_option("--ndc", dest = "ndchost", help = "number of dc hosts")
@@ -41,10 +46,10 @@ if __name__ == "__main__":
 	parser.add_option("-o", "--output", dest = "output", help = "the output file", default = "tmp_traffic.txt")
 	options,args = parser.parse_args()
 
-	base_t = 2000000000
+	base_t = 2 * 1e9 # 2s
 
 	if not options.ndchost or not options.nwanhost:
-		print "please use -ndc to enter number of dc hosts and -nwan to enter number of wan hosts"
+		print "please use --ndc to enter number of dc hosts and --nwan to enter number of wan hosts"
 		sys.exit(0)
 	ndchost = int(options.ndchost)
 	nwanhost = int(options.nwanhost)
@@ -78,11 +83,7 @@ if __name__ == "__main__":
 
 	# generate flows
 	avg = customRand.getAvg()
-	print "avg: ", avg
-	print "bandwidth: ", bandwidth
-	print "load: ", load
 	avg_inter_arrival = 1/(bandwidth*load/8./avg)*1000000000
-	print "avg_inter_arrival: ", avg_inter_arrival
 	n_flow_estimate = int(time / avg_inter_arrival * nhost)
 	n_flow = 0
 	ofile.write("%d \n"%n_flow_estimate)

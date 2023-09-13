@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
     uint64_t interval_cnt = (end_time - start_time) / interval + 1;
     double EWMA = 0.9;
     // 统计总值、均值
-    if (0) {
+    if (1) {
         // 吞吐量统计
         uint64_t* thoughput_dc_time = (uint64_t*)malloc(sizeof(uint64_t) * interval_cnt);
         uint64_t* thoughput_wan_time = (uint64_t*)malloc(sizeof(uint64_t) * interval_cnt);
@@ -97,13 +97,13 @@ int main(int argc, char** argv) {
                     uint64_t delay = tr.time - tr.ack.ts;
                     delay_dc_time[(tr.time - start_time) / interval] += delay;
                     delay_dc_time_cnt[(tr.time - start_time) / interval] += 1;
-                    printf("[DC] delay %lu\n", delay);
+                    // printf("[DC] delay %lu\n", delay);
                 } else if (sourceNodeID < num_dc_nodes + num_wan_nodes) {
                     has_delay_wan = true;
                     uint64_t delay = tr.time - tr.ack.ts;
                     delay_wan_time[(tr.time - start_time) / interval] += delay;
                     delay_wan_time_cnt[(tr.time - start_time) / interval] += 1;
-                    printf("[WAN] delay %lu\n", delay);
+                    // printf("[WAN] delay %lu\n", delay);
                 }
             }
             // -------Loss--------//
@@ -119,8 +119,8 @@ int main(int argc, char** argv) {
                 wan_total_time += thoughput_wan_time[i];
             }
         }
-        printf("dc_total_time: %lu\n", dc_total_time);
-        printf("wan_total_time: %lu\n", wan_total_time);
+        // printf("dc_total_time: %lu\n", dc_total_time);
+        // printf("wan_total_time: %lu\n", wan_total_time);
         if (wan_total_time != 0) printf("[Throuput] dc : wan = %lf\n", (double)dc_total_time / wan_total_time);
         // print thoughput with time to file
         string thoughput_dc_file_name = "traceinfo/" + MIDDIR + "_thoughput_dc.txt";
@@ -132,8 +132,8 @@ int main(int argc, char** argv) {
             fprintf(thoughput_wan_file, "%lu %lu\n", start_time + i * interval, thoughput_wan_time[i]);
         }
         // -------Delay--------//
-        printf("has_delay_dc: %d\n", has_delay_dc);
-        printf("has_delay_wan: %d\n", has_delay_wan);
+        // printf("has_delay_dc: %d\n", has_delay_dc);
+        // printf("has_delay_wan: %d\n", has_delay_wan);
         uint64_t dc_total_delay = 0;
         uint64_t wan_total_delay = 0;
         uint64_t dc_total_delay_cnt = 0;
@@ -163,7 +163,7 @@ int main(int argc, char** argv) {
         } else {
             wan_avg_delay = wan_total_delay / wan_total_delay_cnt;
         }
-        printf("[AVG Delay] dc %lu : wan %lu\n", dc_avg_delay, wan_avg_delay);
+        // printf("[AVG Delay] dc %lu : wan %lu\n", dc_avg_delay, wan_avg_delay);
         // print delay with time to file
         string delay_dc_file_name = "traceinfo/" + MIDDIR + "_delay_dc.txt";
         string delay_wan_file_name = "traceinfo/" + MIDDIR + "_delay_wan.txt";
@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
         fclose(thoughput_wan_file);
     }
     // 逐流统计
-    if (1) {
+    if (0) {
         int flow_1_nodeID = 0, flow_1_dst_nodeID = 3;
         int flow_2_nodeID = 1, flow_2_dst_nodeID = 4;
         int flow_3_nodeID = 2, flow_3_dst_nodeID = 5;

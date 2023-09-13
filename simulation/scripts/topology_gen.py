@@ -138,25 +138,23 @@ def mix_topology_gen(config_file_name: str):
         DC_Core.append(Node(label, base_idx, NodeType.DC_CORE))
         base_idx += 1
     all_dc_switches : List[Node] = DC_Core + DC_Agg + DC_ToR
-    all_wan_switches : List[Node] = WAN_ToR + WAN_Agg   
+    all_wan_switches : List[Node] = WAN_ToR + WAN_Agg 
     # ------------------- Generate Links -------------------
     # Rack to ToR
     DCHost_To_DCToR : List[Links] = []     
     for i in range(pods):
         for j in range(tor_per_pod):
-            for k in range(host_per_rack):
-                DCHost_To_DCToR.append(Links(DC_Hosts[i*j*host_per_rack:(i*j+1)*host_per_rack], [DC_ToR[i*tor_per_pod+j]], "10Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
+            DCHost_To_DCToR.append(Links(DC_Hosts[(i*tor_per_pod+j)*host_per_rack:(i*tor_per_pod+j+1)*host_per_rack], [DC_ToR[i*tor_per_pod+j]], "10Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
     WANHost_To_WANToR : List[Links] = []
     for i in range(pods):
         for j in range(tor_per_pod):
-            for k in range(host_per_rack):
-                WANHost_To_WANToR.append(Links(WAN_Hosts[i*j*host_per_rack:(i*j+1)*host_per_rack], [WAN_ToR[i*tor_per_pod+j]], "10Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
+            WANHost_To_WANToR.append(Links(WAN_Hosts[(i*tor_per_pod+j)*host_per_rack:(i*tor_per_pod+j+1)*host_per_rack], [WAN_ToR[i*tor_per_pod+j]], "10Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
     DCToR_To_DCAgg : List[Links] = []
     for i in range(pods):
-        DCToR_To_DCAgg.append(Links(DC_ToR[i*tor_per_pod : (i+1)*tor_per_pod], DC_Agg[i*agg_per_pod : (i+1)*agg_per_pod], "40Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
+        DCToR_To_DCAgg.append(Links(DC_ToR[i*tor_per_pod : (i+1)*tor_per_pod], DC_Agg[i*agg_per_pod : (i+1)*agg_per_pod], "20Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
     WANToR_To_WANAgg : List[Links] = []
     for i in range(pods):
-        WANToR_To_WANAgg.append(Links(WAN_ToR[i*tor_per_pod : (i+1)*tor_per_pod], WAN_Agg[i*agg_per_pod : (i+1)*agg_per_pod], "40Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
+        WANToR_To_WANAgg.append(Links(WAN_ToR[i*tor_per_pod : (i+1)*tor_per_pod], WAN_Agg[i*agg_per_pod : (i+1)*agg_per_pod], "20Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
     DCAgg_To_DCCore : List[Links] = []
     for i in range(pods):
         DCAgg_To_DCCore.append(Links(DC_Agg[i*agg_per_pod : (i+1)*agg_per_pod], DC_Core, "40Gbps", "1000ns", "0.000000", LinkType.LESS_TO_MORE_PARTITION))
