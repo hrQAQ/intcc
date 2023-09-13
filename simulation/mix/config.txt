@@ -6,15 +6,10 @@ PACKET_PAYLOAD_SIZE 1000
 TOPOLOGY_FILE mix/topology/mix.txt
 TRACE_FILE mix/trace_node/mix-trace.txt
 
-
-FLOW_FILE mix/traffic/hdp_mix_0.3_40G_0.3_1:1.txt
-TRACE_OUTPUT_FILE ../data/testACK/HPCC.tr
-FCT_OUTPUT_FILE ../data/testACK/HPCC.fct
-PFC_OUTPUT_FILE ../data/testACK/HPCC.pfc
-QLEN_MON_FILE ../data/testACK/HPCC.qlen
+FLOW_FILE_NAME hdp_mix_0.3_40G_0.3_1:1
+CC_MODE 3
 QLEN_MON_START 2000000000
 QLEN_MON_END 2010000000
-CC_MODE 3
 
 SIMULATOR_STOP_TIME 4.00
 

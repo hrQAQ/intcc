@@ -6,6 +6,7 @@
 #   use traffic_gen.py to generate flow file
 # Parameters Setup:
 OUTPUT_DIR="../simulation/mix/traffic"
+DATA_DIR="../data/"
 Distributions=("FbHdp_distribution.txt" "WebSearch_distribution.txt")
 declare -A miniDistribution
 miniDistribution=([FbHdp_distribution.txt]="hdp" [WebSearch_distribution.txt]="web")
@@ -29,8 +30,14 @@ for distribution in ${Distributions[@]};do
         for bandwidth in ${Bandwidths[@]};do
             for time in ${Times[@]};do
                 for((i=0;i<${#ProportionOfDcs[@]};i++));do
-                    output_file=$OUTPUT_DIR/${miniDistribution[$distribution]}\_$(basename "$Topology" .txt)\_$load\_$bandwidth\_$time\_${ProportionOfDcs[$i]}:${ProportionOfWans[$i]}.txt
-                    echo -e "\033[31mGenerating:\033[0m $(basename $output_file)"
+                    filename=${miniDistribution[$distribution]}\_$(basename "$Topology" .txt)\_$load\_$bandwidth\_$time\_${ProportionOfDcs[$i]}:${ProportionOfWans[$i]}
+                    output_file=$OUTPUT_DIR/$filename.txt
+                    # 如果 DATA_DIR 处没有 filename 文件夹，就生成该文件夹
+                    if [ ! -d $DATA_DIR/$filename ]; then
+                        echo -e "\033[31mCreate data dir:\033[0m $DATA_DIR/$filename"
+                        mkdir $DATA_DIR/$filename
+                    fi
+                    echo -e "\033[31mGenerating flow traffic file:\033[0m $(basename $output_file)"
                     {
                         python traffic_gen.py -c $distribution --ndc $ndc --nwan $nwan -l $load -b $bandwidth -t $time --pdc ${ProportionOfDcs[$i]} --pwan ${ProportionOfWans[$i]} -o $output_file
                     }&
