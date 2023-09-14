@@ -1,7 +1,8 @@
 /data/
-/*backup/
+/backup/
 analysis/*.txt
-analysis/Figtures*/
-analysis/traceinfo*/
-analysis/FCTResults*/
+analysis/Figtures/
+analysis/traceinfo/
+analysis/FCTResults/
+analysis/trace_reader
 simulation/mix/*.txt
