@@ -144,32 +144,33 @@ def mix_topology_gen(config_file_name: str):
     DCHost_To_DCToR : List[Links] = []     
     for i in range(pods):
         for j in range(tor_per_pod):
-            DCHost_To_DCToR.append(Links(DC_Hosts[(i*tor_per_pod+j)*host_per_rack:(i*tor_per_pod+j+1)*host_per_rack], [DC_ToR[i*tor_per_pod+j]], "10Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
+            DCHost_To_DCToR.append(Links(DC_Hosts[(i*tor_per_pod+j)*host_per_rack:(i*tor_per_pod+j+1)*host_per_rack], [DC_ToR[i*tor_per_pod+j]], "10Gbps", "2us", "0.000000", LinkType.FULL_CONNECTION))
     WANHost_To_WANToR : List[Links] = []
     for i in range(pods):
         for j in range(tor_per_pod):
-            WANHost_To_WANToR.append(Links(WAN_Hosts[(i*tor_per_pod+j)*host_per_rack:(i*tor_per_pod+j+1)*host_per_rack], [WAN_ToR[i*tor_per_pod+j]], "10Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
+            WANHost_To_WANToR.append(Links(WAN_Hosts[(i*tor_per_pod+j)*host_per_rack:(i*tor_per_pod+j+1)*host_per_rack], [WAN_ToR[i*tor_per_pod+j]], "10Gbps", "7ms", "0.000000", LinkType.FULL_CONNECTION))
     DCToR_To_DCAgg : List[Links] = []
     for i in range(pods):
-        DCToR_To_DCAgg.append(Links(DC_ToR[i*tor_per_pod : (i+1)*tor_per_pod], DC_Agg[i*agg_per_pod : (i+1)*agg_per_pod], "20Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
+        DCToR_To_DCAgg.append(Links(DC_ToR[i*tor_per_pod : (i+1)*tor_per_pod], DC_Agg[i*agg_per_pod : (i+1)*agg_per_pod], "25Gbps", "2us", "0.000000", LinkType.FULL_CONNECTION))
     WANToR_To_WANAgg : List[Links] = []
     for i in range(pods):
-        WANToR_To_WANAgg.append(Links(WAN_ToR[i*tor_per_pod : (i+1)*tor_per_pod], WAN_Agg[i*agg_per_pod : (i+1)*agg_per_pod], "20Gbps", "1000ns", "0.000000", LinkType.FULL_CONNECTION))
+        WANToR_To_WANAgg.append(Links(WAN_ToR[i*tor_per_pod : (i+1)*tor_per_pod], WAN_Agg[i*agg_per_pod : (i+1)*agg_per_pod], "25Gbps", "7ms", "0.000000", LinkType.FULL_CONNECTION))
     DCAgg_To_DCCore : List[Links] = []
     for i in range(pods):
-        DCAgg_To_DCCore.append(Links(DC_Agg[i*agg_per_pod : (i+1)*agg_per_pod], DC_Core, "40Gbps", "1000ns", "0.000000", LinkType.LESS_TO_MORE_PARTITION))
+        DCAgg_To_DCCore.append(Links(DC_Agg[i*agg_per_pod : (i+1)*agg_per_pod], DC_Core, "50Gbps", "2us", "0.000000", LinkType.LESS_TO_MORE_PARTITION))
     WANAgg_To_DCCore : List[Links] = []
     for i in range(pods):
-        WANAgg_To_DCCore.append(Links(WAN_Agg[i*agg_per_pod : (i+1)*agg_per_pod], DC_Core,  "40Gbps", "1000ns", "0.000000", LinkType.LESS_TO_MORE_PARTITION))
+        WANAgg_To_DCCore.append(Links(WAN_Agg[i*agg_per_pod : (i+1)*agg_per_pod], DC_Core,  "50Gbps", "7ms", "0.000000", LinkType.LESS_TO_MORE_PARTITION))
     all_links : List[Links] = DCHost_To_DCToR + WANHost_To_WANToR + DCToR_To_DCAgg + WANToR_To_WANAgg + DCAgg_To_DCCore + WANAgg_To_DCCore      
     # ------------------- Generate Config File -------------------
     with open(config_file_name, 'w') as f:
         nodes_num = len(DC_Hosts) + len(WAN_Hosts) + len(all_dc_switches) + len(all_wan_switches)
-        switch_num = len(all_dc_switches) + len(all_wan_switches)
+        dc_switch_num = len(all_dc_switches)
+        wan_switch_num = len(all_wan_switches)
         link_num = 0
         for link in all_links:
             link_num += link.link_cnt()
-        f.write(str(nodes_num) + " " + str(switch_num) + " " + str(link_num) + "\n")
+        f.write(str(nodes_num) + " " + str(dc_switch_num) + " " + str(wan_switch_num) + " " + str(link_num) + "\n")
         for switch in all_dc_switches:
             f.write(str(switch.node_id) + " ")
         f.write("\n")

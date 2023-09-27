@@ -14,24 +14,56 @@ using namespace std;
 
 uint32_t ip_to_node_id(uint32_t ip) { return (ip >> 8) & 0xffff; }
 
+vector<string> split(const string& str, const string& delim) {
+    vector<string> res;
+    if ("" == str) return res;
+    char* strs = new char[str.length() + 1];
+    strcpy(strs, str.c_str());
+
+    char* d = new char[delim.length() + 1];
+    strcpy(d, delim.c_str());
+
+    char* p = strtok(strs, d);
+    while (p) {
+        string s = p;
+        res.push_back(s);
+        p = strtok(NULL, d);
+    }
+    return res;
+}
+
 int main(int argc, char** argv) {
-    if (argc != 2 && argc != 3) {
-        printf("Usage: ./trace_reader <trace_file> [filter_expr]\n");
+    if (argc != 3) {
+        printf("Usage: ./trace_reader <trace_file> <parse_type>\n");
+        printf("    trace_file: \n");
+        printf("        path of the trace data\n");
+        printf("        eg. ../data/hdp_mix_0.3_10G_0.1_1:1/GEAR.tr\n");
+        printf("    parse_type: \n");
+        printf("        0: print trace,\n");
+        printf("        1: analysis avg throuput and latency,\n");
+        printf("        2: two flow competing scenario\n");
         return 0;
     }
     FILE* file = fopen(argv[1], "r");
-    string filename = argv[1];  // ../data/load1:1/GEAR.tr
-    // change to load1:1/GEAR
-    string MIDDIR = filename.substr(8, filename.find_last_of(".") - 8);
-    printf("MIDDIR: %s\n", MIDDIR.c_str());
+    string filename = argv[1];  // eg. "../data/hdp_mix_0.3_10G_0.1_1:1/GEAR.tr"
+    // Get mid-dir: hdp_mix_0.3_10G_0.1_1:1
+    vector<string> paths = split(filename, "/");
+    assert(paths.size() - 2 > 0);
+    string mid_dir = paths[paths.size() - 2];
+    vector<string> name_split = split(paths[paths.size() - 1], ".");
+    assert(name_split.size() - 1 > 0);
+    string trace_method_name = name_split[0];
     TraceFilter f;
-    if (argc == 3) {
-        f.parse(argv[2]);
-        if (f.root == NULL) {
-            printf("Invalid filter\n");
-            return 0;
-        }
-    }
+
+    // parse argv[2]
+    int param_type = atoi(argv[2]);
+    // if (argc == 3) {
+    //     f.parse(argv[2]);
+    //     if (f.root == NULL) {
+    //         printf("Invalid filter\n");
+    //         return 0;
+    //     }
+    // }
     // printf("filter: %s\n", f.str().c_str());
 
     // first read SimSetting
@@ -54,7 +86,14 @@ int main(int argc, char** argv) {
     uint64_t interval_cnt = (end_time - start_time) / interval + 1;
     double EWMA = 0.9;
     // 统计总值、均值
-    if (1) {
+    if (param_type == 0) {
+        // print trace
+        while (tr.Deserialize(file) > 0) {
+            // if (!f.test(tr)) continue;
+            print_trace(tr);
+        }
+    }
+    else if (param_type == 1) {
         // 吞吐量统计
         uint64_t* thoughput_dc_time = (uint64_t*)malloc(sizeof(uint64_t) * interval_cnt);
         uint64_t* thoughput_wan_time = (uint64_t*)malloc(sizeof(uint64_t) * interval_cnt);
@@ -121,10 +160,10 @@ int main(int argc, char** argv) {
         }
         // printf("dc_total_time: %lu\n", dc_total_time);
         // printf("wan_total_time: %lu\n", wan_total_time);
-        if (wan_total_time != 0) printf("[Throuput] dc : wan = %lf\n", (double)dc_total_time / wan_total_time);
+        // if (wan_total_time != 0) printf("[Throuput] dc : wan = %lf\n", (double)dc_total_time / wan_total_time);
         // print thoughput with time to file
-        string thoughput_dc_file_name = "traceinfo/" + MIDDIR + "_thoughput_dc.txt";
-        string thoughput_wan_file_name = "traceinfo/" + MIDDIR + "_thoughput_wan.txt";
+        string thoughput_dc_file_name = "traceinfo/" + mid_dir + "/" + trace_method_name + "_thoughput_dc.txt";
+        string thoughput_wan_file_name = "traceinfo/" + mid_dir + "/" + trace_method_name + "_thoughput_wan.txt";
         FILE* thoughput_dc_file = fopen(thoughput_dc_file_name.c_str(), "w");
         FILE* thoughput_wan_file = fopen(thoughput_wan_file_name.c_str(), "w");
         for (uint64_t i = 0; i < interval_cnt; i++) {
@@ -165,8 +204,8 @@ int main(int argc, char** argv) {
         }
         // printf("[AVG Delay] dc %lu : wan %lu\n", dc_avg_delay, wan_avg_delay);
         // print delay with time to file
-        string delay_dc_file_name = "traceinfo/" + MIDDIR + "_delay_dc.txt";
-        string delay_wan_file_name = "traceinfo/" + MIDDIR + "_delay_wan.txt";
+        string delay_dc_file_name = "traceinfo/" + mid_dir + "/" + trace_method_name + "_delay_dc.txt";
+        string delay_wan_file_name = "traceinfo/" + mid_dir + "/" + trace_method_name + "_delay_wan.txt";
         FILE* delay_dc_file = fopen(delay_dc_file_name.c_str(), "w");
         FILE* delay_wan_file = fopen(delay_wan_file_name.c_str(), "w");
         // EWMA process
@@ -193,7 +232,7 @@ int main(int argc, char** argv) {
         fclose(thoughput_wan_file);
     }
     // 逐流统计
-    if (0) {
+    else if (param_type == 2) {
         int flow_1_nodeID = 0, flow_1_dst_nodeID = 3;
         int flow_2_nodeID = 1, flow_2_dst_nodeID = 4;
         int flow_3_nodeID = 2, flow_3_dst_nodeID = 5;
@@ -256,9 +295,9 @@ int main(int argc, char** argv) {
             }
         }
         // Throughput
-        string thoughput_flow_1_file_name = "traceinfo/" + MIDDIR + "_thoughput_flow_1.txt";
-        string thoughput_flow_2_file_name = "traceinfo/" + MIDDIR + "_thoughput_flow_2.txt";
-        string thoughput_flow_3_file_name = "traceinfo/" + MIDDIR + "_thoughput_flow_3.txt";
+        string thoughput_flow_1_file_name = "traceinfo/" + mid_dir + "/" + trace_method_name + "_thoughput_flow_1.txt";
+        string thoughput_flow_2_file_name = "traceinfo/" + mid_dir + "/" + trace_method_name + "_thoughput_flow_2.txt";
+        string thoughput_flow_3_file_name = "traceinfo/" + mid_dir + "/" + trace_method_name + "_thoughput_flow_3.txt";
         FILE* thoughput_flow_1_file = fopen(thoughput_flow_1_file_name.c_str(), "w");
         FILE* thoughput_flow_2_file = fopen(thoughput_flow_2_file_name.c_str(), "w");
         FILE* thoughput_flow_3_file = fopen(thoughput_flow_3_file_name.c_str(), "w");
@@ -271,9 +310,9 @@ int main(int argc, char** argv) {
         fclose(thoughput_flow_2_file);
         fclose(thoughput_flow_3_file);
         // Delay
-        string delay_flow_1_file_name = "traceinfo/" + MIDDIR + "_delay_flow_1.txt";
-        string delay_flow_2_file_name = "traceinfo/" + MIDDIR + "_delay_flow_2.txt";
-        string delay_flow_3_file_name = "traceinfo/" + MIDDIR + "_delay_flow_3.txt";
+        string delay_flow_1_file_name = "traceinfo/" + mid_dir + "/" + trace_method_name + "_delay_flow_1.txt";
+        string delay_flow_2_file_name = "traceinfo/" + mid_dir + "/" + trace_method_name + "_delay_flow_2.txt";
+        string delay_flow_3_file_name = "traceinfo/" + mid_dir + "/" + trace_method_name + "_delay_flow_3.txt";
         FILE* delay_flow_1_file = fopen(delay_flow_1_file_name.c_str(), "w");
         FILE* delay_flow_2_file = fopen(delay_flow_2_file_name.c_str(), "w");
         FILE* delay_flow_3_file = fopen(delay_flow_3_file_name.c_str(), "w");

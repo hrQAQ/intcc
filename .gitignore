@@ -1,8 +1,11 @@
 /data/
 /backup/
 analysis/*.txt
-analysis/Figtures/
+analysis/Figures/
 analysis/traceinfo/
 analysis/FCTResults/
 analysis/trace_reader
 simulation/mix/*.txt
+*.tmp
+*.log
+*.pyc

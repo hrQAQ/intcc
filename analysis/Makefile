@@ -5,3 +5,5 @@ trace_reader : trace_reader.cpp trace-format.h trace_filter.hpp utils.hpp sim-se
 
 fct_analysis: fct_analysis.cpp
 	g++ fct_analysis.cpp -o fct_analysis -O3 -std=gnu++11
+
+.PHONY : trace_reader

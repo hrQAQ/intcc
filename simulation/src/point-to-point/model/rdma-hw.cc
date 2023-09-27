@@ -1194,7 +1194,7 @@ namespace ns3
 				{
 					double prev = qp->intcc.m_lastUtilization;
 					// 计算广域网速率并且更新
-					new_rate = qp->intcc.m_curRate * (m_targetUtil * m_targetUtil - 2 * m_targetUtil * prev + prev * qp->intcc.m_maxU)/ m_targetUtil / std::abs(qp->intcc.m_maxU - prev) + m_rai;
+					new_rate = qp->intcc.m_curRate * (m_targetUtil * m_targetUtil - 1.8 * m_targetUtil * prev + prev * qp->intcc.m_maxU)/ m_targetUtil / std::abs(qp->intcc.m_maxU - prev) + m_rai;
 				}
 			}
 			else
@@ -1247,12 +1247,12 @@ namespace ns3
 			if (prev == 0.0)
 			{
 				// TODO: m_rai前面要加一个系数，需要计算dc段rtt; DataRate好像没有重写/运算符
-				new_rate = qp->intcc.m_curRate * ((2 * m_targetUtil - u) / u) + fairnessArg*m_rai;
+				new_rate = qp->intcc.m_curRate * ((1.8 * m_targetUtil - u) / u) + fairnessArg*m_rai;
 				qp->intcc.m_lastUtilization = u;
 			}
 			else if (u < (m_targetUtil - m_epsilon) || (u > m_targetUtil + m_epsilon))
 			{
-				double para = (2 * m_targetUtil - u) / u * m_targetUtil / u * prev / (2 * m_targetUtil - prev);
+				double para = (1.8 * m_targetUtil - u) / u * m_targetUtil / u * prev / (1.8 * m_targetUtil - prev);
 				new_rate = qp->intcc.m_curRate * para + fairnessArg*m_rai;
 				qp->intcc.m_lastUtilization = u;
 			}
@@ -1271,6 +1271,39 @@ namespace ns3
 			}
 		}
 	}
+
+	/***********************
+	 * Cubic
+	 ************************/
+	// bool RdmaHw::IsDCFlow(Ptr<RdmaQueuePair> qp, CustomHeader &ch)
+	// {
+	// 	// 以current resolution ns 为单位
+	// 	uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.gear.ts;
+	// 	if (rtt < 200 * qp->m_baseRtt)
+	// 		return true;
+	// 	return false;
+	// }
+
+	// void RdmaHw::HandleAckCubic(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch)
+	// {
+	// 	uint32_t seq = ch.ack.seq;
+	// 	bool fast_react = true;
+	// 	if (seq > qp->cubic.m_lastUpdateSeq)
+	// 	{
+	// 		fast_react = false;
+	// 		qp->cubic.m_lastUpdateSeq = qp->snd_nxt;
+	// 	}
+	// 	if (IsDCFlow(qp, ch))
+	// 	{
+	// 		UpdateRateIntra(qp, p, ch, fast_react);
+	// 	}
+	// 	else
+	// 	{
+	// 		UpdateRateCross(qp, p, ch, fast_react);
+	// 	}
+	// }
+
+
 
 	/**********************
 	 * TIMELY

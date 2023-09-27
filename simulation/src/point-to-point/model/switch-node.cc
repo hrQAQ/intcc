@@ -24,6 +24,11 @@ TypeId SwitchNode::GetTypeId (void)
 			BooleanValue(false),
 			MakeBooleanAccessor(&SwitchNode::m_ecnEnabled),
 			MakeBooleanChecker())
+	.AddAttribute("IntEnabled",
+			"Enable Int Header Modify.",
+			BooleanValue(false),
+			MakeBooleanAccessor(&SwitchNode::m_intEnabled),
+			MakeBooleanChecker())
 	.AddAttribute("CcMode",
 			"CC mode.",
 			UintegerValue(0),
@@ -220,84 +225,86 @@ void SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Pack
 		if (buf[PppHeader::GetStaticSize() + 9] == 0x11){ // udp packet
 			IntHeader *ih = (IntHeader*)&buf[PppHeader::GetStaticSize() + 20 + 8 + 6]; // ppp, ip, udp, SeqTs, INT
 			Ptr<QbbNetDevice> dev = DynamicCast<QbbNetDevice>(m_devices[ifIndex]);
-			if (m_ccMode == 3){ // HPCC
-				ih->PushHop(Simulator::Now().GetTimeStep(), m_txBytes[ifIndex], dev->GetQueue()->GetNBytesTotal(), dev->GetDataRate().GetBitRate());
-			} else if(m_ccMode == 13) { // GEAR
-				ih->PushHop(Simulator::Now().GetTimeStep(), m_txBytes[ifIndex], dev->GetQueue()->GetNBytesTotal(), dev->GetDataRate().GetBitRate());
-			} else if (m_ccMode == 10){ // HPCC-PINT
-				uint64_t t = Simulator::Now().GetTimeStep();
-				uint64_t dt = t - m_lastPktTs[ifIndex];
-				if (dt > m_maxRtt)
-					dt = m_maxRtt;
-				uint64_t B = dev->GetDataRate().GetBitRate() / 8; //Bps
-				uint64_t qlen = dev->GetQueue()->GetNBytesTotal();
-				double newU;
+			if(m_intEnabled) {
+				if (m_ccMode == 3){ // HPCC
+					ih->PushHop(Simulator::Now().GetTimeStep(), m_txBytes[ifIndex], dev->GetQueue()->GetNBytesTotal(), dev->GetDataRate().GetBitRate());
+				} else if(m_ccMode == 13) { // GEAR
+					ih->PushHop(Simulator::Now().GetTimeStep(), m_txBytes[ifIndex], dev->GetQueue()->GetNBytesTotal(), dev->GetDataRate().GetBitRate());
+				} else if (m_ccMode == 10){ // HPCC-PINT
+					uint64_t t = Simulator::Now().GetTimeStep();
+					uint64_t dt = t - m_lastPktTs[ifIndex];
+					if (dt > m_maxRtt)
+						dt = m_maxRtt;
+					uint64_t B = dev->GetDataRate().GetBitRate() / 8; //Bps
+					uint64_t qlen = dev->GetQueue()->GetNBytesTotal();
+					double newU;
 
-				/**************************
-				 * approximate calc
-				 *************************/
-				int b = 20, m = 16, l = 20; // see log2apprx's paremeters
-				int sft = logres_shift(b,l);
-				double fct = 1<<sft; // (multiplication factor corresponding to sft)
-				double log_T = log2(m_maxRtt)*fct; // log2(T)*fct
-				double log_B = log2(B)*fct; // log2(B)*fct
-				double log_1e9 = log2(1e9)*fct; // log2(1e9)*fct
-				double qterm = 0;
-				double byteTerm = 0;
-				double uTerm = 0;
-				if ((qlen >> 8) > 0){
-					int log_dt = log2apprx(dt, b, m, l); // ~log2(dt)*fct
-					int log_qlen = log2apprx(qlen >> 8, b, m, l); // ~log2(qlen / 256)*fct
-					qterm = pow(2, (
-								log_dt + log_qlen + log_1e9 - log_B - 2*log_T
-								)/fct
-							) * 256;
-					// 2^((log2(dt)*fct+log2(qlen/256)*fct+log2(1e9)*fct-log2(B)*fct-2*log2(T)*fct)/fct)*256 ~= dt*qlen*1e9/(B*T^2)
-				}
-				if (m_lastPktSize[ifIndex] > 0){
-					int byte = m_lastPktSize[ifIndex];
-					int log_byte = log2apprx(byte, b, m, l);
-					byteTerm = pow(2, (
-								log_byte + log_1e9 - log_B - log_T
-								)/fct
-							);
-					// 2^((log2(byte)*fct+log2(1e9)*fct-log2(B)*fct-log2(T)*fct)/fct) ~= byte*1e9 / (B*T)
-				}
-				if (m_maxRtt > dt && m_u[ifIndex] > 0){
-					int log_T_dt = log2apprx(m_maxRtt - dt, b, m, l); // ~log2(T-dt)*fct
-					int log_u = log2apprx(int(round(m_u[ifIndex] * 8192)), b, m, l); // ~log2(u*512)*fct
-					uTerm = pow(2, (
-								log_T_dt + log_u - log_T
-								)/fct
-							) / 8192;
-					// 2^((log2(T-dt)*fct+log2(u*512)*fct-log2(T)*fct)/fct)/512 = (T-dt)*u/T
-				}
-				newU = qterm+byteTerm+uTerm;
+					/**************************
+					 * approximate calc
+					 *************************/
+					int b = 20, m = 16, l = 20; // see log2apprx's paremeters
+					int sft = logres_shift(b,l);
+					double fct = 1<<sft; // (multiplication factor corresponding to sft)
+					double log_T = log2(m_maxRtt)*fct; // log2(T)*fct
+					double log_B = log2(B)*fct; // log2(B)*fct
+					double log_1e9 = log2(1e9)*fct; // log2(1e9)*fct
+					double qterm = 0;
+					double byteTerm = 0;
+					double uTerm = 0;
+					if ((qlen >> 8) > 0){
+						int log_dt = log2apprx(dt, b, m, l); // ~log2(dt)*fct
+						int log_qlen = log2apprx(qlen >> 8, b, m, l); // ~log2(qlen / 256)*fct
+						qterm = pow(2, (
+									log_dt + log_qlen + log_1e9 - log_B - 2*log_T
+									)/fct
+								) * 256;
+						// 2^((log2(dt)*fct+log2(qlen/256)*fct+log2(1e9)*fct-log2(B)*fct-2*log2(T)*fct)/fct)*256 ~= dt*qlen*1e9/(B*T^2)
+					}
+					if (m_lastPktSize[ifIndex] > 0){
+						int byte = m_lastPktSize[ifIndex];
+						int log_byte = log2apprx(byte, b, m, l);
+						byteTerm = pow(2, (
+									log_byte + log_1e9 - log_B - log_T
+									)/fct
+								);
+						// 2^((log2(byte)*fct+log2(1e9)*fct-log2(B)*fct-log2(T)*fct)/fct) ~= byte*1e9 / (B*T)
+					}
+					if (m_maxRtt > dt && m_u[ifIndex] > 0){
+						int log_T_dt = log2apprx(m_maxRtt - dt, b, m, l); // ~log2(T-dt)*fct
+						int log_u = log2apprx(int(round(m_u[ifIndex] * 8192)), b, m, l); // ~log2(u*512)*fct
+						uTerm = pow(2, (
+									log_T_dt + log_u - log_T
+									)/fct
+								) / 8192;
+						// 2^((log2(T-dt)*fct+log2(u*512)*fct-log2(T)*fct)/fct)/512 = (T-dt)*u/T
+					}
+					newU = qterm+byteTerm+uTerm;
 
-				#if 0
-				/**************************
-				 * accurate calc
-				 *************************/
-				double weight_ewma = double(dt) / m_maxRtt;
-				double u;
-				if (m_lastPktSize[ifIndex] == 0)
-					u = 0;
-				else{
-					double txRate = m_lastPktSize[ifIndex] / double(dt); // B/ns
-					u = (qlen / m_maxRtt + txRate) * 1e9 / B;
+					#if 0
+					/**************************
+					 * accurate calc
+					 *************************/
+					double weight_ewma = double(dt) / m_maxRtt;
+					double u;
+					if (m_lastPktSize[ifIndex] == 0)
+						u = 0;
+					else{
+						double txRate = m_lastPktSize[ifIndex] / double(dt); // B/ns
+						u = (qlen / m_maxRtt + txRate) * 1e9 / B;
+					}
+					newU = m_u[ifIndex] * (1 - weight_ewma) + u * weight_ewma;
+					printf(" %lf\n", newU);
+					#endif
+
+					/************************
+					 * update PINT header
+					 ***********************/
+					uint16_t power = Pint::encode_u(newU);
+					if (power > ih->GetPower())
+						ih->SetPower(power);
+
+					m_u[ifIndex] = newU;
 				}
-				newU = m_u[ifIndex] * (1 - weight_ewma) + u * weight_ewma;
-				printf(" %lf\n", newU);
-				#endif
-
-				/************************
-				 * update PINT header
-				 ***********************/
-				uint16_t power = Pint::encode_u(newU);
-				if (power > ih->GetPower())
-					ih->SetPower(power);
-
-				m_u[ifIndex] = newU;
 			}
 		}
 	}

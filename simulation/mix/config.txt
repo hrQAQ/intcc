@@ -3,11 +3,11 @@ USE_DYNAMIC_PFC_THRESHOLD 1
 
 PACKET_PAYLOAD_SIZE 1000
 
-TOPOLOGY_FILE mix/topology/mix.txt
-TRACE_FILE mix/trace_node/mix-trace.txt
+TOPOLOGY_FILE mix/topology/congestion.txt
+TRACE_FILE mix/trace_node/congestion-trace.txt
 
-FLOW_FILE_NAME hdp_mix_0.3_40G_0.3_1:1
-CC_MODE 3
+FLOW_FILE_NAME  congestion
+CC_MODE  13
 QLEN_MON_START 2000000000
 QLEN_MON_END 2010000000
 

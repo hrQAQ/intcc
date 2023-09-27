@@ -668,18 +668,23 @@ int main(int argc, char *argv[]) {
     topof.open(topology_file.c_str());
     flowf.open(flow_file.c_str());
     tracef.open(trace_file.c_str());
-    uint32_t node_num, switch_num, link_num, trace_num;
-    topof >> node_num >> switch_num >> link_num;
+    uint32_t node_num, dc_switch_num, wan_switch_num, link_num, trace_num;
+    topof >> node_num >> dc_switch_num >> wan_switch_num >> link_num;
     flowf >> flow_num;
     tracef >> trace_num;
 
     // n.Create(node_num);
     vector<uint32_t> node_type(node_num, 0);
-    // switch的type是1， node的type是0
-    for (uint32_t i = 0; i < switch_num; i++) {
+    // dc switch的type是1, wan switch的type是2， node的type是0
+    for (uint32_t i = 0; i < dc_switch_num; i++) {
         uint32_t sid;
         topof >> sid;
         node_type[sid] = 1;
+    }
+    for (uint32_t i = 0; i < wan_switch_num; i++) {
+        uint32_t sid;
+        topof >> sid;
+        node_type[sid] = 2;
     }
     for (uint32_t i = 0; i < node_num; i++) {
         if (node_type[i] == 0)
@@ -688,6 +693,10 @@ int main(int argc, char *argv[]) {
             Ptr<SwitchNode> sw = CreateObject<SwitchNode>();
             n.Add(sw);
             sw->SetAttribute("EcnEnabled", BooleanValue(enable_qcn));
+            if (node_type[i] == 1) {
+				// only dc switch enable int
+                sw->SetAttribute("IntEnabled", BooleanValue(true));
+            }
         }
     }
 

@@ -6,7 +6,9 @@
 #   use traffic_gen.py to generate flow file
 # Parameters Setup:
 OUTPUT_DIR="../simulation/mix/traffic"
-DATA_DIR="../data/"
+DATA_DIR="../data"
+TRACE_INFO_DIR="../analysis/traceinfo"
+FIGTURE_DIR="../analysis/Figures"
 Distributions=("FbHdp_distribution.txt" "WebSearch_distribution.txt")
 declare -A miniDistribution
 miniDistribution=([FbHdp_distribution.txt]="hdp" [WebSearch_distribution.txt]="web")
@@ -36,6 +38,14 @@ for distribution in ${Distributions[@]};do
                     if [ ! -d $DATA_DIR/$filename ]; then
                         echo -e "\033[31mCreate data dir:\033[0m $DATA_DIR/$filename"
                         mkdir $DATA_DIR/$filename
+                    fi
+                    if [ ! -d $TRACE_INFO_DIR/$filename ]; then
+                        echo -e "\033[31mCreate data dir:\033[0m $TRACE_INFO_DIR/$filename"
+                        mkdir $TRACE_INFO_DIR/$filename
+                    fi
+                    if [ ! -d $FIGTURE_DIR/$filename ]; then
+                        echo -e "\033[31mCreate data dir:\033[0m $FIGTURE_DIR/$filename"
+                        mkdir $FIGTURE_DIR/$filename
                     fi
                     echo -e "\033[31mGenerating flow traffic file:\033[0m $(basename $output_file)"
                     {
