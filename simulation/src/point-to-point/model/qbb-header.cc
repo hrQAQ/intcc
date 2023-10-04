@@ -41,7 +41,7 @@ namespace ns3 {
 	}
 
 	void qbbHeader::SetTs(uint64_t ts){
-		NS_ASSERT_MSG(IntHeader::mode == 1, "qbbHeader cannot SetTs when IntHeader::mode != 1");
+		// NS_ASSERT_MSG(IntHeader::mode == 1, "qbbHeader cannot SetTs when IntHeader::mode != 1");
 		ih.ts = ts;
 	}
 	void qbbHeader::SetCnp(){
@@ -69,7 +69,7 @@ namespace ns3 {
 	}
 
 	uint64_t qbbHeader::GetTs() const {
-		NS_ASSERT_MSG(IntHeader::mode == 1, "qbbHeader cannot GetTs when IntHeader::mode != 1");
+		// NS_ASSERT_MSG(IntHeader::mode == 1, "qbbHeader cannot GetTs when IntHeader::mode != 1");
 		return ih.ts;
 	}
 	uint8_t qbbHeader::GetCnp() const{

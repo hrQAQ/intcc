@@ -104,7 +104,6 @@ public:
 		struct {
 			IntHop hop[maxHop];
 			uint16_t nhop;
-			uint64_t ts;
 		} gear;
 	};
 

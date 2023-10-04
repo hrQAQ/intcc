@@ -15,13 +15,13 @@ IntHeader::IntHeader() : nhop(0) {
 
 uint32_t IntHeader::GetStaticSize(){
 	if (mode == NORMAL){
-		return sizeof(hop) + sizeof(nhop);
+		return sizeof(hop) + sizeof(nhop) + sizeof(ts);
 	}else if (mode == TS){
 		return sizeof(ts);
 	}else if (mode == PINT){
-		return sizeof(pint);
+		return sizeof(pint) + sizeof(ts);
 	}else if (mode == GEAR){
-		return sizeof(gear.hop) + sizeof(gear.nhop) + sizeof(gear.ts);
+		return sizeof(gear.hop) + sizeof(gear.nhop) + sizeof(ts);
 	}else {
 		return 0;
 	}
@@ -48,6 +48,7 @@ void IntHeader::Serialize (Buffer::Iterator start) const{
 			i.WriteU32(hop[j].buf[1]);
 		}
 		i.WriteU16(nhop);
+		i.WriteU64(ts);
 	}else if (mode == TS){
 		i.WriteU64(ts);
 	}else if (mode == PINT){
@@ -55,13 +56,14 @@ void IntHeader::Serialize (Buffer::Iterator start) const{
 			i.WriteU8(pint.power_lo8);
 		else if (pint_bytes == 2)
 			i.WriteU16(pint.power);
+		i.WriteU64(ts);
 	}else if (mode == GEAR){
 		for (uint32_t j = 0; j < maxHop; j++){
 			i.WriteU32(gear.hop[j].buf[0]);
 			i.WriteU32(gear.hop[j].buf[1]);
 		}
 		i.WriteU16(gear.nhop);
-		i.WriteU64(gear.ts);
+		i.WriteU64(ts);
 	}
 }
 
@@ -73,6 +75,7 @@ uint32_t IntHeader::Deserialize (Buffer::Iterator start){
 			hop[j].buf[1] = i.ReadU32();
 		}
 		nhop = i.ReadU16();
+		ts = i.ReadU64();
 	}else if (mode == TS){
 		ts = i.ReadU64();
 	}else if (mode == PINT){
@@ -80,13 +83,14 @@ uint32_t IntHeader::Deserialize (Buffer::Iterator start){
 			pint.power_lo8 = i.ReadU8();
 		else if (pint_bytes == 2)
 			pint.power = i.ReadU16();
+		ts = i.ReadU64();
 	}else if (mode == GEAR) {
 		for (uint32_t j = 0; j < maxHop; j++){
 			gear.hop[j].buf[0] = i.ReadU32();
 			gear.hop[j].buf[1] = i.ReadU32();
 		}
 		gear.nhop = i.ReadU16();
-		gear.ts = i.ReadU64();
+		ts = i.ReadU64();
 	}
 	return GetStaticSize();
 }

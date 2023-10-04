@@ -9,6 +9,7 @@
 
 #include "ns3/ppp-header.h"
 
+using namespace std;
 namespace ns3 {
 
 /**************************
@@ -73,6 +74,14 @@ RdmaQueuePair::RdmaQueuePair(uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, ui
     intcc.m_incStage = 0;
     intcc.m_maxU = 0;
     intcc.m_delta_t = 0;
+}
+
+void RdmaQueuePair::SetLogFile(string metric_mon_file_prefix) {
+    std::string rate_log_filename = metric_mon_file_prefix + std::to_string((sip.Get() >> 8) & 0xffff) + "-" + std::to_string((dip.Get() >> 8) & 0xffff) + ".rate";
+    std::string rtt_log_filename = metric_mon_file_prefix + std::to_string((sip.Get() >> 8) & 0xffff) + "-" + std::to_string((dip.Get() >> 8) & 0xffff) + ".rtt";
+    m_rateLog = std::ofstream(rate_log_filename);
+    m_rttLog = std::ofstream(rtt_log_filename);
+    printf("RdmaQueuePair::SetLogFile %s %s\n", rate_log_filename.c_str(), rtt_log_filename.c_str());
 }
 
 void RdmaQueuePair::SetSize(uint64_t size) { m_size = size; }

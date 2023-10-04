@@ -4,6 +4,7 @@ import re
 import getopt
 import sys
 import logging
+from typing import List, Dict, Tuple
 
 from constant import *
 
@@ -25,7 +26,7 @@ def get_css():
     mark_size = 5
 
     font = {'family': 'Times new roman', 'weight': 'bold', 'size': '22'}
-    colors = ['#D76364', '#EF7A6D', '#F1D77E', '#B1CE46', '#9394E7', '#9DC3E7']
+    colors = ['#D76364', '#F1D77E','#B1CE46', '#EF7A6D', '#9394E7', '#9DC3E7']
 
     # css = {
     #     'flow-0': [colors[0], '-', marker, 'Flow-1', line_width, mark_size],
@@ -36,59 +37,59 @@ def get_css():
     # }
     return colors, font
 
-def plot_throuput(xdc, ydc, xwan, ywan, colors, font, method):
-    L.info("Plot throuput of DC and WAN for " + method + " Save to " + FIGDIR + "Throuput_" + method + ".pdf")
-    plt.plot(xdc, ydc, color=colors[0], linestyle='-', marker='', label='DC', linewidth=1)
-    plt.plot(xwan, ywan, color=colors[2], linestyle='-', marker='', label='WAN', linewidth=1)
-    plt.xlabel('Time (us)', font)
-    plt.ylabel('Throuput (MB)', font)
-    # plt.xticks([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+def get_x_and_y(file: str) -> (list, list):
+    with open(file, 'r') as f:
+        data = f.read().splitlines()
+        x, y = [], []
+        for line in data:
+            if(float(line.split()[0]) < DRAW_END_TIME and float(line.split()[0]) > DRAW_START_TIME):
+                x.append(float(line.split()[0]))
+                y.append(float(line.split()[1]))
+    # xwan_new, ywan_new = [], []
+    # for i in range(0, len(xwan), wan_batch):
+    #     xwan_new.append(xwan[i])
+    #     ywan_new.append(sum(ywan[i:i+wan_batch])/wan_batch)
+    return (x, y)
+
+def preprocess_data(x: list, y: list) -> (list, list):
+    pass
+
+def univer_plot(x_lists: [list], y_lists: [list], labels: [str], drawMap: [bool], xlabel: str, ylabel: str, colors: [str], font: dict, filename: str):
+    L.info("Plot " + filename + " Save to " + FIGDIR + filename + ".pdf")
+    assert len(x_lists) == len(y_lists) == len(labels) <= len(colors)
+    plt.figure(figsize=(6, 4))
+    colors, font = get_css()
+    # plt.title(filename, font)
+    plt.rc("font", **font)
+    for i in range(len(x_lists)):
+        if drawMap[i] == True:
+            plt.plot(x_lists[i], y_lists[i], color=colors[i], linestyle='-', marker='', label=labels[i], linewidth=1)
+    plt.xlabel(xlabel, font)
+    plt.ylabel(ylabel, font)
     plt.grid(linestyle='--', linewidth=0.5)
     plt.legend(loc='best', fontsize=16)
-    plt.savefig(FIGDIR+'Throuput_' + method + '.pdf', bbox_inches='tight')
-    plt.close()
-    
-def plot_delay(xdc, ydc, xwan, ywan, colors, font, method):
-    L.info("Plot delay of DC and WAN for " + method + " Save to " + FIGDIR + "Delay_" + method + ".pdf")
-    plt.plot(xdc, ydc, color=colors[0], linestyle='-', marker='', label='DC', linewidth=1)
-    plt.plot(xwan, ywan, color=colors[2], linestyle='-', marker='', label='WAN', linewidth=1)
-    plt.xlabel('Time (us)', font)
-    plt.ylabel('Delay (us)', font)
-    # plt.xticks([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    plt.grid(linestyle='--', linewidth=0.5)
-    plt.legend(loc='best', fontsize=16)
-    plt.savefig(FIGDIR+'Delay_' + method + '.pdf', bbox_inches='tight')
+    plt.savefig(FIGDIR + filename + '.pdf', bbox_inches='tight')
     plt.close()
 
-def plot_throuput_flow(x1, y1, x2, y2, x3, y3, colors, font, method):
-    L.info("Plot throuput of three flow for " + method + " Save to " + FIGDIR + "Throuput_" + method + ".pdf")
-    plt.plot(x1, y1, color=colors[0], linestyle='-', marker='', label='DC', linewidth=1)
-    plt.plot(x2, y2, color=colors[4], linestyle='-', marker='', label='WAN', linewidth=1)
-    plt.plot(x3, y3, color=colors[3], linestyle='-', marker='', label='ADD', linewidth=1)
-    plt.xlabel('Time (us)', font)
-    plt.ylabel('Throuput (MB)', font)
-    # plt.xticks([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    plt.grid(linestyle='--', linewidth=0.5)
-    plt.legend(loc='best', fontsize=16)
-    plt.savefig(FIGDIR+'Throuput_' + method + '.pdf', bbox_inches='tight')
-    plt.close()
-    
-def plot_delay_flow(x1, y1, x2, y2, x3, y3, colors, font, method):
-    L.info("Plot delay of three flow for " + method + " Save to " + FIGDIR + "Delay_" + method + ".pdf")
-    plt.plot(x1, y1, color=colors[0], linestyle='-', marker='', label='DC', linewidth=1)
-    plt.plot(x2, y2, color=colors[4], linestyle='-', marker='', label='WAN', linewidth=1)
-    # plt.plot(x3, y3, color=colors[3], linestyle='-', marker='', label='ADD', linewidth=1j)
-    plt.xlabel('Time (us)', font)
-    plt.ylabel('Delay (us)', font)
-    # plt.xticks([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-    plt.grid(linestyle='--', linewidth=0.5)
-    plt.legend(loc='best', fontsize=16)
-    plt.savefig(FIGDIR+'Delay_' + method + '.pdf', bbox_inches='tight')
-    plt.close()
+def diff_metric_plot(case: str, method: str, dataFilenameSuffixs: [str], labels: [str], drawMap: [bool], xlabel: str, ylabel: str, colors: [str], font: dict, filename: str):
+    X, Y = [], []
+    hasData = True
+    assert len(dataFilenameSuffixs) == len(labels) == len(drawMap) <= len(colors)
+    for dataFilenameSuffix in dataFilenameSuffixs:
+        try:
+            x, y = get_x_and_y(DATA_DIR + case + "/" + method + dataFilenameSuffix)
+            X.append(x)
+            Y.append(y)
+        except:
+            L.error("No file: " + DATA_DIR + case + "/" + method + dataFilenameSuffix)
+            hasData = False
+    if hasData:
+        univer_plot(X, Y, labels, drawMap, xlabel, ylabel, colors, font, filename)
 
 if __name__ == "__main__":
     L.info("Start plot.py")
-    c, m = None, None
+    cases = os.listdir(DATA_DIR)
+    methods = ["DCTCP", "DCQCN", "HPCC", "TIMELY", "GEAR"]
     try:
         opts, args = getopt.getopt(sys.argv[1:], "c:m:h", ["case=", "method=", "help"])
     except getopt.GetoptError:
@@ -99,189 +100,47 @@ if __name__ == "__main__":
             Usage()
             sys.exit()
         elif opt in ("-c", "--case"):
-            c = arg
+            cases = [arg]
         elif opt in ("-m", "--method"):
-            m = arg
+            methods = [arg]
         else:
             L.error("unhandled option")
             sys.exit(2)
-    if c:
-        cases = [c]
-    else:
-        cases = os.listdir(DATA_DIR)
-    if m:
-        methods = [m]
-    else:
-        methods = ["DCTCP", "DCQCN", "HPCC", "TIMELY", "GEAR"]
-
+    colors, font = get_css()
+    L.info("Plot cases: " + str(cases))
+    L.info("Plot methods: " + str(methods))
     for case in cases:
         FIGDIR = BASE_FIGDIR + case + "/"
-        L.info("Plot case: " + case)
-        if "hdp" in case or "mix" in case:
-            for method in methods:
-                xdc = []
-                ydc = []
-                xwan = []
-                ywan = []
-                try:
-                    with open(DATA_DIR + case + "/"  + method + Throuput_DC, 'r') as f:
-                        data = f.read().splitlines()
-                        for line in data:
-                            if(float(line.split()[0]) < DRAW_END_TIME and float(line.split()[0]) > DRAW_START_TIME):
-                                xdc.append(float(line.split()[0])/1000)
-                                ydc.append(float(line.split()[1])/1024/1024)
-                except:
-                    L.error("No file: " + DATA_DIR + case + "/" + method + Throuput_DC)
-                    continue
-                try:
-                    with open(DATA_DIR + case + "/" + method + Throuput_WAN, 'r') as f:
-                        data = f.read().splitlines()
-                        for line in data:
-                            # 2050000000
-                            if(float(line.split()[0]) < DRAW_END_TIME and float(line.split()[0]) > DRAW_START_TIME):
-                                xwan.append(float(line.split()[0])/1000)
-                                ywan.append(float(line.split()[1])/1024/1024)
-                except:
-                    L.error("No file: " + DATA_DIR + case + "/" + method + Throuput_WAN)
-                    continue
-                # each 10 items in WAN aggregate to one item, the x-index is the first item's x-index
-                xwan_new = []
-                ywan_new = []
-                for i in range(0, len(xwan), wan_batch):
-                    xwan_new.append(xwan[i])
-                    ywan_new.append(sum(ywan[i:i+wan_batch])/wan_batch)
-                plt.figure(figsize=(6, 4))
-                colors, font = get_css()
-                plt.title(method + ': Throuput of DC and WAN', font)
-                plt.rc("font", **font)
-                plot_throuput(xdc, ydc, xwan_new, ywan_new, colors, font, method)
-
-            for method in methods:
-                xdc = []
-                ydc = []
-                xwan = []
-                ywan = []
-                try:
-                    with open(DATA_DIR + case+ "/"  + method + Delay_DC, 'r') as f:
-                        data = f.read().splitlines()
-                        for line in data:
-                            if(float(line.split()[0]) < DRAW_END_TIME and float(line.split()[0]) > DRAW_START_TIME):
-                                xdc.append(float(line.split()[0])/1000)
-                                ydc.append(float(line.split()[1])/1000)
-                except:
-                    L.error("No file: " + DATA_DIR + case+ "/"  + method + Delay_DC)
-                    continue
-                try:
-                    with open(DATA_DIR + case+ "/"  + method + Delay_WAN, 'r') as f:
-                        data = f.read().splitlines()
-                        for line in data:
-                            if(float(line.split()[0]) < DRAW_END_TIME and float(line.split()[0]) > DRAW_START_TIME):
-                                xwan.append(float(line.split()[0])/1000)
-                                ywan.append(float(line.split()[1])/1000)
-                except:
-                    L.error("No file: " + DATA_DIR + case+ "/"  + method + Delay_WAN)
-                    continue
-                # each 10 items in WAN aggregate to one item, the x-index is the first item's x-index
-                xwan_new = []
-                ywan_new = []
-                for i in range(0, len(xwan), wan_batch):
-                    xwan_new.append(xwan[i])
-                    ywan_new.append(sum(ywan[i:i+wan_batch])/wan_batch)
-                plt.figure(figsize=(6, 4))
-                colors, font = get_css()
-                plt.title(method + ': Delay of DC and WAN', font)
-                plt.rc("font", **font)
-                plot_delay(xdc, ydc, xwan_new, ywan_new, colors, font, method)
-        
-        if "start" in case or "exit" in case or "congestion" in case:
-            for method in methods:
-                x1 = []
-                y1 = []
-                x2 = []
-                y2 = []
-                x3 = []
-                y3 = []
-                flows = ["_thoughput_flow_1.txt", "_thoughput_flow_2.txt", "_thoughput_flow_3.txt"]
-                if os.path.exists(DATA_DIR + case + "/" + method + flows[0]):
-                    with open(DATA_DIR + case + "/" + method + flows[0], 'r') as f:
-                        data = f.read().splitlines()
-                        for line in data:
-                            if(float(line.split()[0]) < DRAW_END_TIME and float(line.split()[0]) > DRAW_START_TIME):
-                                x1.append(float(line.split()[0])/1000)
-                                y1.append(float(line.split()[1])/1024/1024)
-                if os.path.exists(DATA_DIR + case + "/" + method + flows[1]):
-                    with open(DATA_DIR + case + "/" + method + flows[1], 'r') as f:
-                        data = f.read().splitlines()
-                        for line in data:
-                            if(float(line.split()[0]) < DRAW_END_TIME and float(line.split()[0]) > DRAW_START_TIME):
-                                x2.append(float(line.split()[0])/1000)
-                                y2.append(float(line.split()[1])/1024/1024)
-                # each 10 items in WAN aggregate to one item, the x-index is the first item's x-index
-                x2_new = []
-                y2_new = []
-                for i in range(0, len(x2), wan_batch):
-                    x2_new.append(x2[i])
-                    y2_new.append(sum(y2[i:i+wan_batch])/wan_batch)
-                if os.path.exists(DATA_DIR + case + "/" + method + flows[2]):
-                    with open(DATA_DIR + case + "/" + method + flows[2], 'r') as f:
-                        data = f.read().splitlines()
-                        for line in data:
-                            # 2050000000
-                            if(float(line.split()[0]) < DRAW_END_TIME and float(line.split()[0]) > DRAW_START_TIME):
-                                x3.append(float(line.split()[0])/1000)
-                                y3.append(float(line.split()[1])/1024/1024)
-                x3_new = []
-                y3_new = []
-                for i in range(0, len(x3), wan_batch):
-                    x3_new.append(x3[i])
-                    y3_new.append(sum(y3[i:i+wan_batch])/wan_batch)
-                plt.figure(figsize=(6, 4))
-                colors, font = get_css()
-                plt.title(method + ': Throuput of DC and WAN', font)
-                plt.rc("font", **font)
-                plot_throuput_flow(x1, y1, x2_new, y2_new, x3_new, y3_new, colors, font, method)
-            for method in methods:
-                x1 = []
-                y1 = []
-                x2 = []
-                y2 = []
-                x3 = []
-                y3 = []
-                flows = ["_delay_flow_1.txt", "_delay_flow_2.txt", "_delay_flow_3.txt"]
-                if os.path.exists(DATA_DIR + case+ "/"  + method + flows[0]):
-                    with open(DATA_DIR + case+ "/"  + method + flows[0], 'r') as f:
-                        data = f.read().splitlines()
-                        for line in data:
-                            if(float(line.split()[0]) < DRAW_END_TIME and float(line.split()[0]) > DRAW_START_TIME):
-                                x1.append(float(line.split()[0])/1000)
-                                y1.append(float(line.split()[1])/1000)
-                if os.path.exists(DATA_DIR + case+ "/"  + method + flows[1]):
-                    with open(DATA_DIR + case+ "/"  + method + flows[1], 'r') as f:
-                        data = f.read().splitlines()
-                        for line in data:
-                            if(float(line.split()[0]) < DRAW_END_TIME and float(line.split()[0]) > DRAW_START_TIME):
-                                x2.append(float(line.split()[0])/1000)
-                                y2.append(float(line.split()[1])/1000)
-                x2_new = []
-                y2_new = []
-                for i in range(0, len(x2), wan_batch):
-                    x2_new.append(x2[i])
-                    y2_new.append(sum(y2[i:i+wan_batch])/wan_batch)
-                if os.path.exists(DATA_DIR + case + "/" + method + flows[2]):
-                    with open(DATA_DIR + case+ "/"  + method + flows[2], 'r') as f:
-                        data = f.read().splitlines()
-                        for line in data:
-                            if(float(line.split()[0]) < DRAW_END_TIME and float(line.split()[0]) > DRAW_START_TIME):
-                                x3.append(float(line.split()[0])/1000)
-                                y3.append(float(line.split()[1])/1024/1024)
-                x3_new = []
-                y3_new = []
-                for i in range(0, len(x3), wan_batch):
-                    x3_new.append(x3[i])
-                    y3_new.append(sum(y3[i:i+wan_batch])/wan_batch)
-                plt.figure(figsize=(6, 4))
-                colors, font = get_css()
-                plt.title(method + ': Throuput of DC and WAN', font)
-                plt.rc("font", **font)
-                plot_delay_flow(x1, y1, x2_new, y2_new, x3_new, y3_new, colors, font, method)
-
+        for method in methods:
+            if "hdp" in case or "mix" in case:
+                L.info("[Use TraceInfo] case: " + case + " | method: " + method)
+                DRAW_START_TIME = 2e9
+                DRAW_END_TIME = 2e9 + 1e8
+                diff_metric_plot(case, method, ["_thoughput_dc.txt", "_thoughput_wan.txt"], ["DC", "WAN"], [True, True], "Time (ms)", "Throughput (Mbps)", colors, font, method + "_throughput")
+                diff_metric_plot(case, method, ["_delay_dc.txt", "_delay_wan.txt"], ["DC", "WAN"], [True, True], "Time (ms)", "Delay (us)", colors, font, method + "_delay")
+            elif "start" in case or "exit" in case or "congestion" or "intra" in case or "inter" in case:
+                DRAW_START_TIME = 2e9
+                DRAW_END_TIME = 3e9 + 2e8
+                # -- Use TraceInfo --
+                L.info("[Use TraceInfo] case: " + case + " | method: " + method)
+                suffixs_throuput = ["_thoughput_flow_1.txt", "_thoughput_flow_2.txt", "_thoughput_flow_3.txt"]
+                suffixs_delay = ["_delay_flow_1.txt", "_delay_flow_2.txt", "_delay_flow_3.txt"]
+                labels = ["Flow-1", "Flow-2", "Flow-3"]
+                drawMap = [True, True, True]
+                diff_metric_plot(case, method, suffixs_throuput, labels, drawMap, "Time (ms)", "Throughput (Mbps)", colors, font, method + "_throughput")
+                diff_metric_plot(case, method, suffixs_delay, labels, drawMap, "Time (ms)", "Delay (us)", colors, font, method + "_delay")
+                # -- Use Direct Metric --
+                L.info("[Use Direct Metric] case: " + case + " | method: " + method)
+                suffixs_throuput = []
+                suffixs_delay = []
+                for file in os.listdir(DATA_DIR + case):
+                    if file.endswith(".rate") and file.startswith(method):
+                        suffixs_throuput.append(file.split("_")[1])
+                    elif file.endswith(".rtt") and file.startswith(method):
+                        suffixs_delay.append("_" + file.split("_")[1])
+                labels = [ i.split(".")[0] for i in suffixs_throuput ]
+                suffixs_throuput = [ "_" + i for i in suffixs_throuput ]
+                drawMap = [True for i in range(len(suffixs_throuput))]
+                diff_metric_plot(case, method, suffixs_throuput, labels, drawMap, "Time (ms)", "Sending Rate (Mbps)", colors, font, method + "_RATE")
+                diff_metric_plot(case, method, suffixs_delay, labels, drawMap, "Time (ms)", "Delay (us)", colors, font, method + "_RTT")
+    L.info("End plot.py")

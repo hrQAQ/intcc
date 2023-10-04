@@ -63,6 +63,7 @@ string trace_output_file;
 string fct_output_file;
 string pfc_output_file;
 string qlen_mon_file;
+string metric_mon_file_prefix;
 
 double alpha_resume_interval = 55, rp_timer, ewma_gain = 1 / 16;
 double rate_decrease_interval = 4;
@@ -661,6 +662,7 @@ int main(int argc, char *argv[]) {
     fct_output_file = PATH_TO_OUTPUT_FILE + flow_file_name + "/" + cc_mode_name + ".fct";
     pfc_output_file = PATH_TO_OUTPUT_FILE + flow_file_name + "/" + cc_mode_name + ".pfc";
     qlen_mon_file = PATH_TO_OUTPUT_FILE + flow_file_name + "/" + cc_mode_name + ".qlen";
+    metric_mon_file_prefix = PATH_TO_OUTPUT_FILE + flow_file_name + "/" + cc_mode_name + "_";
 
     // SeedManager::SetSeed(time(NULL));
 
@@ -694,7 +696,7 @@ int main(int argc, char *argv[]) {
             n.Add(sw);
             sw->SetAttribute("EcnEnabled", BooleanValue(enable_qcn));
             if (node_type[i] == 1) {
-				// only dc switch enable int
+                // only dc switch enable int
                 sw->SetAttribute("IntEnabled", BooleanValue(true));
             }
         }
@@ -862,6 +864,7 @@ int main(int argc, char *argv[]) {
             rdmaHw->SetAttribute("RateBound", BooleanValue(rate_bound));
             rdmaHw->SetAttribute("DctcpRateAI", DataRateValue(DataRate(dctcp_rate_ai)));
             rdmaHw->SetPintSmplThresh(pint_prob);
+            rdmaHw->SetMonFilePrefix(metric_mon_file_prefix);
             // create and install RdmaDriver
             Ptr<RdmaDriver> rdma = CreateObject<RdmaDriver>();
             Ptr<Node> node = n.Get(i);

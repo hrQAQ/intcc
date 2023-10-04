@@ -9,8 +9,11 @@
 #include <ns3/object.h>
 #include <ns3/packet.h>
 
+#include <fstream>
+#include <string>
 #include <vector>
 
+using namespace std;
 namespace ns3 {
 
 class RdmaQueuePair : public Object {
@@ -30,6 +33,7 @@ class RdmaQueuePair : public Object {
     uint32_t wp;          // current window of packets
     uint32_t lastPktSize;
     Callback<void> m_notifyAppFinish;
+    std::ofstream m_rateLog, m_rttLog;
 
     /******************************
      * runtime states
@@ -110,6 +114,7 @@ class RdmaQueuePair : public Object {
      **********/
     static TypeId GetTypeId(void);
     RdmaQueuePair(uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, uint16_t _sport, uint16_t _dport);
+    void SetLogFile(string metric_mon_file_prefix);
     void SetSize(uint64_t size);
     void SetWin(uint32_t win);
     void SetBaseRtt(uint64_t baseRtt);
