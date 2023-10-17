@@ -107,7 +107,11 @@ class RdmaQueuePair : public Object {
         // 加性增加的次数
         uint32_t m_incStage = 0;
         // 统计值，为了减少代码重写量
-        double m_bketa;
+        // -------量化速率
+        uint64_t m_probeTimer = 0; // 探测包计时器
+        uint64_t m_compensation = 0; // 累计补偿值
+        // -------量化速率
+        double m_bketa = 0.0;
         double m_maxU;
         double u;
         struct
