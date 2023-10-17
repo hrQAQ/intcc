@@ -84,7 +84,7 @@ double pint_prob = 1.0;
 double u_target = 0.95;
 uint32_t int_multi = 1;
 bool rate_bound = true;
-
+uint64_t t_high = 500000;
 uint32_t ack_high_prio = 0;
 uint64_t link_down_time = 0;
 uint32_t link_down_A = 0, link_down_B = 0;
@@ -163,7 +163,7 @@ void ScheduleFlowInputs() {
                                       global_t == 1 ? maxRtt : pairRtt[flow_input.src][flow_input.dst]);
         ApplicationContainer appCon = clientHelper.Install(n.Get(flow_input.src));
         appCon.Start(Time(0));
-        if (flow_input.src == 2) appCon.Stop(Time("4s"));
+        // if (flow_input.src == 2) appCon.Stop(Time("3s"));
 
         // get the next flow input
         flow_input.idx++;
@@ -618,6 +618,11 @@ int main(int argc, char *argv[]) {
             } else if (key.compare("PINT_PROB") == 0) {
                 conf >> pint_prob;
                 cout << "PINT_PROB\t\t\t\t" << pint_prob << '\n';
+            } else if (key.compare("TimelyTHigh") == 0) {
+                uint64_t v;
+                conf >> v;
+                t_high = v;
+                cout << "TimelyTHigh\t\t\t\t" << t_high << '\n';
             }
             fflush(stdout);
         }
@@ -862,6 +867,7 @@ int main(int argc, char *argv[]) {
             rdmaHw->SetAttribute("SampleFeedback", BooleanValue(sample_feedback));
             rdmaHw->SetAttribute("TargetUtil", DoubleValue(u_target));
             rdmaHw->SetAttribute("RateBound", BooleanValue(rate_bound));
+            rdmaHw->SetAttribute("TimelyTHigh", UintegerValue(t_high));
             rdmaHw->SetAttribute("DctcpRateAI", DataRateValue(DataRate(dctcp_rate_ai)));
             rdmaHw->SetPintSmplThresh(pint_prob);
             rdmaHw->SetMonFilePrefix(metric_mon_file_prefix);

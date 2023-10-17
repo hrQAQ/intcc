@@ -34,7 +34,8 @@ class RdmaQueuePair : public Object {
     uint32_t lastPktSize;
     Callback<void> m_notifyAppFinish;
     std::ofstream m_rateLog, m_rttLog;
-
+    bool m_flowType;  // true for DC, false for WAN
+    double m_stopTime;
     /******************************
      * runtime states
      *****************************/
@@ -98,6 +99,7 @@ class RdmaQueuePair : public Object {
         uint32_t m_lastUpdateSeq;
         // 上次调整的链路利用率
         double m_lastUtilization;
+        DataRate m_lastRate;
         // 当前速率
         DataRate m_curRate;
         // 用来存储每一跳的信息
@@ -105,7 +107,16 @@ class RdmaQueuePair : public Object {
         // 加性增加的次数
         uint32_t m_incStage = 0;
         // 统计值，为了减少代码重写量
+        double m_bketa;
         double m_maxU;
+        double u;
+        struct
+        {
+          double u;
+          DataRate Rc;
+          uint32_t incStage;
+          double m_lastUtilization;
+        } hopState[IntHeader::maxHop];
         double m_delta_t;
     } intcc;
 
@@ -115,6 +126,7 @@ class RdmaQueuePair : public Object {
     static TypeId GetTypeId(void);
     RdmaQueuePair(uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, uint16_t _sport, uint16_t _dport);
     void SetLogFile(string metric_mon_file_prefix);
+    void SetUtarget(double utarget);
     void SetSize(uint64_t size);
     void SetWin(uint32_t win);
     void SetBaseRtt(uint64_t baseRtt);

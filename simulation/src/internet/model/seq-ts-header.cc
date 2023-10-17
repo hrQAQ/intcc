@@ -33,7 +33,15 @@ NS_OBJECT_ENSURE_REGISTERED (SeqTsHeader);
 SeqTsHeader::SeqTsHeader ()
   : m_seq (0)
 {
-	ih.ts = Simulator::Now().GetTimeStep();
+  if (IntHeader::mode == 1){  // Timely
+    ih.ts = Simulator::Now().GetTimeStep();
+  } else if (IntHeader::mode == 0){ // HPCC
+    ih.hpcc.ts = Simulator::Now().GetTimeStep();
+  } else if (IntHeader::mode == 3){ // GEAR
+    ih.gear.ts = Simulator::Now().GetTimeStep();
+  } else if (IntHeader::mode == 4){ // Other
+    ih.ts = Simulator::Now().GetTimeStep();
+  }
 }
 
 void

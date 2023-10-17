@@ -93,7 +93,8 @@ public:
 		struct {
 			IntHop hop[maxHop];
 			uint16_t nhop;
-		};
+			uint64_t ts;
+		} hpcc;
 		uint64_t ts;
 		union {
 			uint16_t power;
@@ -104,6 +105,7 @@ public:
 		struct {
 			IntHop hop[maxHop];
 			uint16_t nhop;
+			uint64_t ts;
 		} gear;
 	};
 

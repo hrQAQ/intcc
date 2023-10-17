@@ -42,7 +42,12 @@ namespace ns3 {
 
 	void qbbHeader::SetTs(uint64_t ts){
 		// NS_ASSERT_MSG(IntHeader::mode == 1, "qbbHeader cannot SetTs when IntHeader::mode != 1");
-		ih.ts = ts;
+		if (ih.mode == 1)
+			ih.ts = ts;
+		if (ih.mode == 0)
+			ih.hpcc.ts = ts;
+		if (ih.mode == 3)
+			ih.gear.ts = ts;
 	}
 	void qbbHeader::SetCnp(){
 		flags |= 1 << FLAG_CNP;
@@ -70,7 +75,12 @@ namespace ns3 {
 
 	uint64_t qbbHeader::GetTs() const {
 		// NS_ASSERT_MSG(IntHeader::mode == 1, "qbbHeader cannot GetTs when IntHeader::mode != 1");
-		return ih.ts;
+		if (ih.mode == 1)
+			return ih.ts;
+		if (ih.mode == 0)
+			return ih.hpcc.ts;
+		if (ih.mode == 3)
+			return ih.gear.ts;
 	}
 	uint8_t qbbHeader::GetCnp() const{
 		return (flags >> FLAG_CNP) & 1;

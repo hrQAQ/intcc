@@ -385,6 +385,14 @@ namespace ns3 {
 				m_node->SwitchReceiveFromDevice(this, packet, ch);
 			}else { // NIC
 				// send to RdmaHw
+				// IntHeader& ih = ch.ack.ih;
+				// // print ih.time bytes qlen DEBUG
+				// printf("QBB: nhops=%d ", ih.hpcc.nhop);
+				// printf("QBB: time=%lu bytes=%lu qlen=%u rate=%lu\n",
+				// 		ih.hpcc.hop[0].GetTime(),
+				// 		ih.hpcc.hop[0].GetBytes(),
+				// 		ih.hpcc.hop[0].GetQlen(),
+				// 		ih.hpcc.hop[0].GetLineRate());
 				int ret = m_rdmaReceiveCb(packet, ch);
 				// TODO we may based on the ret do something
 			}

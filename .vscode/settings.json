@@ -73,5 +73,6 @@
         "set": "cpp",
         "string": "cpp",
         "charconv": "cpp"
-    }
+    },
+    "liveServer.settings.port": 5501
 }

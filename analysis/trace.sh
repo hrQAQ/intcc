@@ -3,7 +3,7 @@ Usage() {
     echo "Usage: $0 -c case -m method"
     echo "  -c case: case name, default all cases"
     echo "  -m method: method name, default all methods"
-    echo "  -j job: 1 for trace_reader, 2 for cp, default 1"
+    echo "  -j job: 1 for trace_reader, 2 for cp, default 1, 3 for rm"
     exit 1
 }
 
@@ -66,13 +66,26 @@ for subdir in $subdirs; do
                 fi
             fi
             if [[ $j -eq 2 ]]; then
+            # file in ls ../data/$subdir + ./traceinfo/$subdir
                 for file in $(ls ../data/$subdir); do
                     if [[ $file == *.rate || $file == *.rtt ]]; then
-                        echo -e "`date "+%Y-%m-%d %H:%M:%S"` \033[32mINFO\033[0m \033[36mcp\033[0m ../data/$subdir/$file \033[36mto\033[0m ./traceinfo/$subdir/$file"
-                        cp ../data/$subdir/$file ./traceinfo/$subdir/$file
+                        if [[ $file == $method* ]]; then
+                            echo -e "`date "+%Y-%m-%d %H:%M:%S"` \033[32mINFO\033[0m \033[36mcp\033[0m ../data/$subdir/$file \033[36mto\033[0m ./traceinfo/$subdir/$file"
+                            cp -f ../data/$subdir/$file ./traceinfo/$subdir/$file
+                        fi
                     fi
                 done 
             fi
+            if [[ $j -eq 3 ]]; then
+                for file in $(ls ../data/$subdir ./traceinfo/$subdir); do
+                    if [[ $file == *.rate || $file == *.rtt ]]; then
+                        if [[ $file == $method* ]]; then
+                            echo -e "`date "+%Y-%m-%d %H:%M:%S"` \033[32mINFO\033[0m \033[36mrm\033[0m ../data/$subdir/$file \033[36mto\033[0m ./traceinfo/$subdir/$file"
+                            rm -f ./traceinfo/$subdir/$file ../data/$subdir/$file
+                        fi
+                    fi
+                done 
+            fi 
         } &
     done
 done

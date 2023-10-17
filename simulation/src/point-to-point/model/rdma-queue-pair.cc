@@ -36,6 +36,8 @@ RdmaQueuePair::RdmaQueuePair(uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, ui
     m_var_win = false;
     m_rate = 0;
     m_nextAvail = Time(0);
+    m_flowType = false;
+    m_stopTime = 10;
     mlx.m_alpha = 1;
     mlx.m_alpha_cnp_arrived = false;
     mlx.m_first_cnp = true;
@@ -45,9 +47,9 @@ RdmaQueuePair::RdmaQueuePair(uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, ui
     for (uint32_t i = 0; i < sizeof(hp.keep) / sizeof(hp.keep[0]); i++) hp.keep[i] = 0;
     hp.m_incStage = 0;
     hp.m_lastGap = 0;
-    hp.u = 1;
+    hp.u = 0.95;
     for (uint32_t i = 0; i < IntHeader::maxHop; i++) {
-        hp.hopState[i].u = 1;
+        hp.hopState[i].u = 0.95;
         hp.hopState[i].incStage = 0;
     }
 
@@ -70,18 +72,31 @@ RdmaQueuePair::RdmaQueuePair(uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, ui
     intcc.epsilon = 0.01;
     intcc.m_lastUpdateSeq = 0;
     intcc.m_lastUtilization = 0;
+    intcc.m_lastRate = 0;
+    intcc.m_bketa = 0.0;
     intcc.m_curRate = 0;
     intcc.m_incStage = 0;
     intcc.m_maxU = 0;
+    intcc.u = 0.95;
+    for (uint32_t i = 0; i < IntHeader::maxHop; i++) {
+      intcc.hopState[i].u = 0.95;
+      intcc.hopState[i].incStage = 0;
+      intcc.hopState[i].m_lastUtilization = 0;
+    }
     intcc.m_delta_t = 0;
 }
 
 void RdmaQueuePair::SetLogFile(string metric_mon_file_prefix) {
-    std::string rate_log_filename = metric_mon_file_prefix + std::to_string((sip.Get() >> 8) & 0xffff) + "-" + std::to_string((dip.Get() >> 8) & 0xffff) + ".rate";
-    std::string rtt_log_filename = metric_mon_file_prefix + std::to_string((sip.Get() >> 8) & 0xffff) + "-" + std::to_string((dip.Get() >> 8) & 0xffff) + ".rtt";
+    std::string rate_log_filename = metric_mon_file_prefix + std::to_string((sip.Get() >> 8) & 0xffff) + "-" + std::to_string((dip.Get() >> 8) & 0xffff) + "-" + std::to_string(sport) + "-" + std::to_string(dport) + ".rate";
+    std::string rtt_log_filename = metric_mon_file_prefix + std::to_string((sip.Get() >> 8) & 0xffff) + "-" + std::to_string((dip.Get() >> 8) & 0xffff) + "-" + std::to_string(sport) + "-" + std::to_string(dport) + ".rtt";
     m_rateLog = std::ofstream(rate_log_filename);
     m_rttLog = std::ofstream(rtt_log_filename);
     printf("RdmaQueuePair::SetLogFile %s %s\n", rate_log_filename.c_str(), rtt_log_filename.c_str());
+}
+
+void RdmaQueuePair::SetUtarget(double utarget) { 
+    hp.u = utarget;
+    intcc.u = utarget; 
 }
 
 void RdmaQueuePair::SetSize(uint64_t size) { m_size = size; }
