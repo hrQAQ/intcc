@@ -109,7 +109,7 @@ class RdmaQueuePair : public Object {
         // 统计值，为了减少代码重写量
         // -------量化速率
         uint64_t m_probeTimer = 0; // 探测包计时器
-        uint64_t m_compensation = 0; // 累计补偿值
+        double m_compensation = 0.0; // 累计补偿值
         // -------量化速率
         double m_bketa = 0.0;
         double m_maxU;

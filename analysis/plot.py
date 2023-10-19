@@ -86,6 +86,8 @@ def diff_metric_plot(case: str, method: str, dataFilenameSuffixs: [str], labels:
     if hasData:
         univer_plot(X, Y, labels, drawMap, xlabel, ylabel, colors, font, filename)
 
+DirectCases = ["start", "exit", "congestion", "intra", "inter", "context", "lineRateStart", "startRate", "converge", "midRate", "larRate"]
+
 if __name__ == "__main__":
     L.info("Start plot.py")
     cases = os.listdir(DATA_DIR)
@@ -114,43 +116,45 @@ if __name__ == "__main__":
         for method in methods:
             if "hdp" in case or "mix" in case:
                 L.info("[Use TraceInfo] case: " + case + " | method: " + method)
-                DRAW_START_TIME = 2e9
-                DRAW_END_TIME = 2e9 + 1e8
+                DRAW_START_TIME = 1e9
+                DRAW_END_TIME = 4e9 + 1e8
                 diff_metric_plot(case, method, ["_thoughput_dc.txt", "_thoughput_wan.txt"], ["DC", "WAN"], [True, True], "Time (ns)", "Throughput (bps)", colors, font, method + "_throughput")
                 diff_metric_plot(case, method, ["_delay_dc.txt", "_delay_wan.txt"], ["DC", "WAN"], [True, True], "Time (ns)", "Delay (ns)", colors, font, method + "_delay")
-            elif "start" in case or "exit" in case or "congestion" or "intra" in case or "inter" in case or "context" in case:
-                DRAW_START_TIME = 2e9
-                DRAW_END_TIME = 4e9
-                # -- Use TraceInfo --
-                # L.info("[Use TraceInfo] case: " + case + " | method: " + method)
-                # suffixs_throuput = ["_thoughput_flow_1.txt", "_thoughput_flow_2.txt", "_thoughput_flow_3.txt"]
-                # suffixs_delay = ["_delay_flow_1.txt", "_delay_flow_2.txt", "_delay_flow_3.txt"]
-                # labels = ["Flow-1", "Flow-2", "Flow-3"]
-                # drawMap = [True, True, True]
-                # diff_metric_plot(case, method, suffixs_throuput, labels, drawMap, "Time (ns)", "Throughput (bps)", colors, font, method + "_throughput")
-                # diff_metric_plot(case, method, suffixs_delay, labels, drawMap, "Time (ns)", "Delay (ns)", colors, font, method + "_delay")
-                # -- Use Direct Metric --
-                L.info("[Use Direct Metric] case: " + case + " | method: " + method)
-                suffixs_throuput = []
-                suffixs_delay = []
-                for file in os.listdir(DATA_DIR + case):
-                    if file.endswith(".rate") and file.startswith(method):
-                        suffixs_throuput.append(file.split("_")[1])
-                    elif file.endswith(".rtt") and file.startswith(method):
-                        suffixs_delay.append("_" + file.split("_")[1])
-                labels = [ i.split(".")[0] for i in suffixs_throuput ]
-                suffixs_throuput = [ "_" + i for i in suffixs_throuput ]
-                drawMap = [True for i in range(len(suffixs_throuput))]
-                # remove WAN flow plot
-                # for suffix in suffixs_throuput:
-                #     if suffix[1] >= '5':
-                #         drawMap[suffixs_throuput.index(suffix)] = False
-                diff_metric_plot(case, method, suffixs_throuput, labels, drawMap, "Time (ns)", "Sending Rate (bps)", colors, font, method + "_RATE")
-                # remove WAN flow plot
-                drawMap = [True for i in range(len(suffixs_delay))]
-                
-                for suffix in suffixs_delay:
-                    if suffix[1] >= '5':
-                        drawMap[suffixs_delay.index(suffix)] = False
-                diff_metric_plot(case, method, suffixs_delay, labels, drawMap, "Time (ns)", "Delay (ns)", colors, font, method + "_RTT")
+            for directcase in DirectCases:
+                if directcase in case:
+                    DRAW_START_TIME = 0
+                    DRAW_END_TIME = 8e9
+                    # -- Use TraceInfo --
+                    # L.info("[Use TraceInfo] case: " + case + " | method: " + method)
+                    # suffixs_throuput = ["_thoughput_flow_1.txt", "_thoughput_flow_2.txt", "_thoughput_flow_3.txt"]
+                    # suffixs_delay = ["_delay_flow_1.txt", "_delay_flow_2.txt", "_delay_flow_3.txt"]
+                    # labels = ["Flow-1", "Flow-2", "Flow-3"]
+                    # drawMap = [True, True, True]
+                    # diff_metric_plot(case, method, suffixs_throuput, labels, drawMap, "Time (ns)", "Throughput (bps)", colors, font, method + "_throughput")
+                    # diff_metric_plot(case, method, suffixs_delay, labels, drawMap, "Time (ns)", "Delay (ns)", colors, font, method + "_delay")
+                    # -- Use Direct Metric --
+                    L.info("[Use Direct Metric] case: " + case + " | method: " + method)
+                    suffixs_throuput = []
+                    suffixs_delay = []
+                    for file in os.listdir(DATA_DIR + case):
+                        if file.endswith(".rate") and file.startswith(method):
+                            suffixs_throuput.append(file.split("_")[1])
+                        elif file.endswith(".rtt") and file.startswith(method):
+                            suffixs_delay.append(file.split("_")[1])
+                    labels = [ i.split(".")[0] for i in suffixs_throuput ]
+                    suffixs_throuput =[ "_" + i for i in suffixs_throuput ]
+                    drawMap = [True for i in range(len(suffixs_throuput))]
+                    # remove WAN flow plot
+                    # for suffix in suffixs_throuput:
+                    #     if suffix[1] >= '5':
+                    #         drawMap[suffixs_throuput.index(suffix)] = False
+                    diff_metric_plot(case, method, suffixs_throuput, labels, drawMap, "Time (ns)", "Sending Rate (bps)", colors, font, method + "_RATE")
+                    # remove WAN flow plot
+                    labels = [ i.split(".")[0] for i in suffixs_delay ]
+                    suffixs_delay =[ "_" + i for i in suffixs_delay ]
+                    drawMap = [True for i in range(len(suffixs_delay))]
+                    for suffix in suffixs_delay:
+                        if suffix[1] >= '5':
+                            drawMap[suffixs_delay.index(suffix)] = False
+                    diff_metric_plot(case, method, suffixs_delay, labels, drawMap, "Time (ns)", "Delay (ns)", colors, font, method + "_RTT")
     L.info("End plot.py")

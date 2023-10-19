@@ -18,7 +18,7 @@
 #include "ppp-header.h"
 #include "qbb-header.h"
 
-#define OLD 1
+#define v1 1
 namespace ns3 {
 
 TypeId
@@ -273,8 +273,11 @@ RdmaHw::AddQueuePair(uint64_t size,
 
   // set init variables
   DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
-  // qp->m_rate = m_bps;
   qp->m_rate = m_bps;
+  // Config 为特定流设置初始速率
+  // if (((qp->sip.Get() >> 8) & 0xffff) == 0) {
+  //   qp->m_rate = m_bps * 0.95;
+  // }
   qp->m_max_rate = m_bps;
   if (m_cc_mode == 1) {
     qp->mlx.m_targetRate = qp->m_rate;
@@ -482,17 +485,44 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
     if (qp->IsFinished()) {
       QpComplete(qp);
     }
-    // 吞吐量统计
-    // if (3.0 < Simulator::Now().GetSeconds()) {
-    //   printf(
-    //     "Src: %u Throuput: %lu\n", (qp->sip.Get() >> 8) & 0xffff,
-    //     qp->snd_nxt);
-    // }
-    // TODO 自定义流退出时间
-    if (((qp->sip.Get() >> 8) & 0xffff) == 2) {
-      // if (3.0 < Simulator::Now().GetSeconds()) {
-      //   QpComplete(qp);
-      // }
+    // 实验结束，进行吞吐量统计
+    if (4 < Simulator::Now().GetSeconds()) {
+      QpComplete(qp);
+    }
+    // Config 自定义流退出时间
+    if (0) {
+      if (((qp->sip.Get() >> 8) & 0xffff) == 0) {
+        if (7 < Simulator::Now().GetSeconds()) {
+          printf("Src: %u Throuput: %lu\n",
+                 (qp->sip.Get() >> 8) & 0xffff,
+                 qp->snd_nxt);
+          QpComplete(qp);
+        }
+      }
+      if (((qp->sip.Get() >> 8) & 0xffff) == 1) {
+        if (6 < Simulator::Now().GetSeconds()) {
+          printf("Src: %u Throuput: %lu\n",
+                 (qp->sip.Get() >> 8) & 0xffff,
+                 qp->snd_nxt);
+          QpComplete(qp);
+        }
+      }
+      if (((qp->sip.Get() >> 8) & 0xffff) == 2) {
+        if (5 < Simulator::Now().GetSeconds()) {
+          printf("Src: %u Throuput: %lu\n",
+                 (qp->sip.Get() >> 8) & 0xffff,
+                 qp->snd_nxt);
+          QpComplete(qp);
+        }
+      }
+      if (((qp->sip.Get() >> 8) & 0xffff) == 3) {
+        if (4 < Simulator::Now().GetSeconds()) {
+          printf("Src: %u Throuput: %lu\n",
+                 (qp->sip.Get() >> 8) & 0xffff,
+                 qp->snd_nxt);
+          QpComplete(qp);
+        }
+      }
     }
   }
   if (ch.l3Prot == 0xFD) // NACK
@@ -613,6 +643,12 @@ void
 RdmaHw::QpComplete(Ptr<RdmaQueuePair> qp)
 {
   NS_ASSERT(!m_qpCompleteCallback.IsNull());
+  printf("%u %u %u %u %lu\n",
+          (qp->sip.Get() >> 8) & 0xffff,
+          (qp->dip.Get() >> 8) & 0xffff,
+          qp->sport,
+          qp->dport,
+          qp->snd_nxt);
   if (m_cc_mode == 1) {
     Simulator::Cancel(qp->mlx.m_eventUpdateAlpha);
     Simulator::Cancel(qp->mlx.m_eventDecreaseRate);
@@ -671,7 +707,13 @@ RdmaHw::RedistributeQp()
 Ptr<Packet>
 RdmaHw::GetNxtPacket(Ptr<RdmaQueuePair> qp)
 {
-  uint32_t payload_size = qp->GetBytesLeft();
+  uint64_t payload_size = qp->GetBytesLeft();
+  // printf("GetNxtPacket: %u %u %u %Lu %u\n",
+  //        (qp->sip.Get() >> 8) & 0xffff,
+  //        (qp->dip.Get() >> 8) & 0xffff,
+  //        qp->snd_nxt,
+  //        payload_size,
+  //        m_mtu);
   if (m_mtu < payload_size)
     payload_size = m_mtu;
   Ptr<Packet> p = Create<Packet>(payload_size);
@@ -1360,7 +1402,7 @@ RdmaHw::UpdateRateIntra(Ptr<RdmaQueuePair> qp,
           DataRate ra = qp->intcc.m_lastRate;
           double u2 = u1 + (m_targetUtil / u1 - 1.0) * (ra / B);
           double u3 = qp->intcc.u;
-          if (u3 > m_targetUtil - 0.01 || u3 < m_targetUtil + 0.001) {
+          if (u3 > m_targetUtil - 0.01 && u3 < m_targetUtil + 0.001) {
             new_rate = qp->intcc.m_curRate / max_c + m_rai;
             // qp->intcc.m_lastUtilization = qp->intcc.u;
             // qp->intcc.m_lastRate = qp->intcc.m_curRate;
@@ -1392,7 +1434,8 @@ RdmaHw::UpdateRateIntra(Ptr<RdmaQueuePair> qp,
               rc = 0;
             else
               rc = u1 * B.GetBitRate() - ra.GetBitRate() - rb.GetBitRate();
-            if (u3 < m_targetUtil + 10e-2 && u3 > m_targetUtil - 10e-2) {
+            if (u3 < m_targetUtil + 2 * 10e-3 &&
+                u3 > m_targetUtil - 2 * 10e-3) {
               new_rate = qp->intcc.m_curRate + m_rai;
               // new_rate = qp->intcc.m_curRate *
               //              std::abs((m_targetUtil * m_targetUtil -
@@ -1400,33 +1443,42 @@ RdmaHw::UpdateRateIntra(Ptr<RdmaQueuePair> qp,
               //                       (m_targetUtil * (u3 - u1))) +
               //            m_rai;
             } else {
-              new_rate = qp->intcc.m_curRate *
-                           std::abs((m_targetUtil * m_targetUtil -
-                                     2 * m_targetUtil * u1 + u1 * u3) /
-                                    (m_targetUtil * (u3 - u1))) +
-                         m_rai;
-            }
 #if PRINT_LOG
-            printf(" !F[Ramp] k=%lf maxc=%.3lf ra=%.5lf rb=%.5lf rc=%lf "
-                   "rwan=%.6lf "
-                   "U=%.6lf "
-                   "u1=%.6lf "
-                   "u2=%.6lf u3=%.6lf curRate=%.5lf new_rate=%.5lf ",
-                   std::abs((m_targetUtil * m_targetUtil -
-                             2 * m_targetUtil * u1 + u1 * u3) /
-                            (m_targetUtil * (u3 - u1))),
-                   max_c,
-                   ra.GetBitRate() * 1e-9,
-                   rb.GetBitRate() * 1e-9,
-                   rc.GetBitRate() * 1e-9,
-                   rWAN.GetBitRate() * 1e-9,
-                   U,
-                   u1,
-                   u2,
-                   u3,
-                   qp->intcc.m_curRate.GetBitRate() * 1e-9,
-                   new_rate.GetBitRate() * 1e-9);
+              printf(" [Com]");
 #endif
+              new_rate =
+                (m_targetUtil / u3) * qp->intcc.m_curRate.GetBitRate() +
+                (m_targetUtil / u3 - 1) * rc.GetBitRate() *
+                  qp->intcc.m_curRate.GetBitRate() /
+                  (ra.GetBitRate() + rb.GetBitRate()) +
+                m_rai;
+              // new_rate = qp->intcc.m_curRate *
+              //              std::abs((m_targetUtil * m_targetUtil -
+              //                        2 * m_targetUtil * u1 + u1 * u3) /
+              //                       (m_targetUtil * (u3 - u1))) +
+              //            m_rai;
+#if PRINT_LOG
+              printf(" !F[Ramp] k=%lf maxc=%.3lf ra=%.5lf rb=%.5lf rc=%lf "
+                     "rwan=%.6lf "
+                     "U=%.6lf "
+                     "u1=%.6lf "
+                     "u2=%.6lf u3=%.6lf curRate=%.5lf new_rate=%.5lf ",
+                     std::abs((m_targetUtil * m_targetUtil -
+                               2 * m_targetUtil * u1 + u1 * u3) /
+                              (m_targetUtil * (u3 - u1))),
+                     max_c,
+                     ra.GetBitRate() * 1e-9,
+                     rb.GetBitRate() * 1e-9,
+                     rc.GetBitRate() * 1e-9,
+                     rWAN.GetBitRate() * 1e-9,
+                     U,
+                     u1,
+                     u2,
+                     u3,
+                     qp->intcc.m_curRate.GetBitRate() * 1e-9,
+                     new_rate.GetBitRate() * 1e-9);
+#endif
+            }
           }
         }
         if (!fast_react) {
@@ -1467,6 +1519,134 @@ RdmaHw::UpdateRateIntra(Ptr<RdmaQueuePair> qp,
   printf("\n");
 #endif
 }
+
+#ifdef v1
+void
+RdmaHw::UpdateRateCross(Ptr<RdmaQueuePair> qp,
+                        Ptr<Packet> p,
+                        CustomHeader& ch,
+                        bool fast_react)
+{
+  qp->m_rateLog << Simulator::Now().GetTimeStep() << " "
+                << qp->m_rate.GetBitRate() << std::endl;
+  uint32_t next_seq = qp->snd_nxt;
+  IntHeader& ih = ch.ack.ih;
+  uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.gear.ts;
+  uint64_t fairnessArg = std::min(rtt / 32976, uint64_t(2.0));
+#if PRINT_LOG
+  printf("%lu %s %s %u %u %u %u [%u,%u,%u]",
+         Simulator::Now().GetTimeStep(),
+         fast_react ? "fast" : "update",
+         qp->m_flowType ? "DC" : "WAN",
+         (qp->sip.Get() >> 8) & 0xffff,
+         (qp->dip.Get() >> 8) & 0xffff,
+         qp->sport,
+         qp->dport,
+         qp->intcc.m_lastUpdateSeq,
+         ch.ack.seq,
+         next_seq);
+#endif
+  if (qp->intcc.m_lastUpdateSeq == 0) {
+    qp->intcc.m_lastUpdateSeq = next_seq;
+    NS_ASSERT(ih.gear.nhop <= IntHeader::maxHop);
+    for (uint32_t i = 0; i < ih.gear.nhop; i++)
+      qp->intcc.hop[i] = ih.gear.hop[i];
+    qp->intcc.m_lastUtilization = 0.0;
+    qp->intcc.m_curRate = qp->m_rate;
+    qp->intcc.m_bketa = 0.0;
+  } else {
+    NS_ASSERT(ih.gear.nhop <= IntHeader::maxHop);
+    double max_c = 0.0;
+    double U = 0.0;
+    uint64_t dt = 0;
+    for (uint32_t i = 0; i < ih.gear.nhop; i++) {
+      uint64_t tau = ih.gear.hop[i].GetTimeDelta(qp->intcc.hop[i]);
+      double duration = tau * 1e-9;
+      double txRate =
+        (ih.gear.hop[i].GetBytesDelta(qp->intcc.hop[i])) * 8 / duration;
+      double u =
+        txRate / ih.gear.hop[i].GetLineRate() +
+        (double)std::min(ih.gear.hop[i].GetQlen(), qp->intcc.hop[i].GetQlen()) *
+          qp->m_max_rate.GetBitRate() / ih.gear.hop[i].GetLineRate() /
+          qp->m_win;
+#if PRINT_LOG
+      printf(" [%u] %.5lf %.5lf", i, txRate * 1e-9, u);
+#endif
+      if (u > U) {
+        U = u;
+        dt = tau;
+      }
+      qp->intcc.hop[i] = ih.gear.hop[i];
+    }
+    DataRate B = qp->intcc.hop[0].GetLineRate();
+    qp->intcc.u =
+      (qp->intcc.u * (qp->m_baseRtt - dt) + U * dt) / double(qp->m_baseRtt);
+    string stage = "";
+    if (!fast_react) {
+      DataRate new_rate;
+      double para = 0.0;
+      if (qp->intcc.u < m_targetUtil + 0.01 && qp->intcc.u >= m_targetUtil) {
+        stage = " [Single]";
+        para = m_targetUtil / qp->intcc.u;
+        qp->intcc.m_bketa =
+          (para - 1) * qp->intcc.m_curRate.GetBitRate() / B.GetBitRate();
+        new_rate = qp->m_rate * para + fairnessArg * m_rai;
+      } else {
+        stage = " [Multi]";
+        para = (4 * m_targetUtil / qp->intcc.u - 3);
+        if (qp->intcc.u > m_targetUtil - 0.03 &&
+            qp->intcc.u < m_targetUtil - 0.02) {
+          para = (200 * m_targetUtil / qp->intcc.u - 199);
+        }
+        if (qp->intcc.u > m_targetUtil - 0.03 &&
+            qp->intcc.u < m_targetUtil - 0.02) {
+          para = (180 * m_targetUtil / qp->intcc.u - 179);
+        }
+        if (qp->intcc.u > m_targetUtil - 0.02 &&
+            qp->intcc.u < m_targetUtil - 0.01) {
+          para = (160 * m_targetUtil / qp->intcc.u - 159);
+        }
+        if (qp->intcc.u > m_targetUtil - 0.01 && qp->intcc.u < m_targetUtil) {
+          para = (140 * m_targetUtil / qp->intcc.u - 139);
+        }
+        // if (para > 1.25)
+        //   para = 1.25;
+        // if (para < 0.75)
+        //   para = 0.75;
+        qp->intcc.m_bketa =
+          (para - 1) * qp->intcc.m_curRate.GetBitRate() / B.GetBitRate();
+        new_rate = qp->m_rate * para + fairnessArg * m_rai;
+      }
+#if PRINT_LOG
+      printf("%s %.5lf %.5lf %.5lf (%.3lf) "
+             "%.3lf %s %.3lf",
+             stage.c_str(),
+             qp->intcc.u,
+             para,
+             qp->intcc.m_bketa,
+             qp->intcc.m_curRate.GetBitRate() * 1e-9,
+             qp->m_rate.GetBitRate() * 1e-9,
+             (qp->intcc.m_curRate < new_rate) ? "↑" : "↓",
+             new_rate.GetBitRate() * 1e-9);
+#endif
+      if (new_rate < m_minRate)
+        new_rate = m_minRate;
+      if (new_rate > qp->m_max_rate)
+        new_rate = qp->m_max_rate;
+      ChangeRate(qp, new_rate);
+      // 参数更新
+      qp->intcc.m_curRate = qp->m_rate;
+      if (next_seq > qp->intcc.m_lastUpdateSeq)
+        qp->intcc.m_lastUpdateSeq = next_seq + rand() % 2 * m_mtu;
+    }
+  }
+#if PRINT_LOG
+  printf("\n");
+#endif
+}
+#endif
+
+#ifdef v2
 
 // ---------------- 量化utilization ----------------
 // A.第一个RTT的ack到达时，初始化参数： ok
@@ -1522,6 +1702,7 @@ RdmaHw::UpdateRateCross(Ptr<RdmaQueuePair> qp,
   //          ih.gear.hop[i].GetTime(),
   //          qp->intcc.hop[i].GetTime());
 #endif
+  uint64_t curtime = Simulator::Now().GetTimeStep();
   if (qp->intcc.m_lastUpdateSeq == 0) {
     qp->intcc.m_lastUpdateSeq = next_seq;
     NS_ASSERT(ih.gear.nhop <= IntHeader::maxHop);
@@ -1529,9 +1710,10 @@ RdmaHw::UpdateRateCross(Ptr<RdmaQueuePair> qp,
       qp->intcc.hop[i] = ih.gear.hop[i];
     qp->intcc.m_lastUtilization = 0.0;
     qp->intcc.m_curRate = qp->m_rate;
-    qp->intcc.m_compensation = 0;
-    qp->intcc.m_probeTimer = Simulator::Now().GetTimeStep() + 32976;
+    qp->intcc.m_compensation = 0.0;
+    qp->intcc.m_probeTimer = curtime + 32976;
     qp->intcc.m_bketa = 0.0;
+    qp->intcc.m_maxU = 0.0;
   } else {
     NS_ASSERT(ih.gear.nhop <= IntHeader::maxHop);
     double max_c = 0.0;
@@ -1557,60 +1739,93 @@ RdmaHw::UpdateRateCross(Ptr<RdmaQueuePair> qp,
       qp->intcc.hop[i] = ih.gear.hop[i];
     }
     DataRate B = qp->intcc.hop[0].GetLineRate();
-    qp->intcc.u =
-      (qp->intcc.u * (qp->m_baseRtt - dt) + U * dt) / double(qp->m_baseRtt);
-    // max_c = qp->intcc.u / m_targetUtil;
-    // uint64_t time = Simulator::Now().GetTimeStep();
-    // if (time > qp->intcc.m_probeTimer) {
-    //   if (max_c >= m_targetUtil || qp->intcc.m_incStage >= m_maxStage) {
-    //     qp->intcc.m_curRate = qp->intcc.m_curRate / max_c + m_rai;
-    //     qp->intcc.m_incStage = 0;
-    //   } else {
-    //     qp->intcc.m_curRate = qp->intcc.m_curRate + m_rai;
-    //     qp->intcc.m_incStage++;
-    //   }
-    //   qp->intcc.m_probeTimer = time + 32976;
-    //   qp->intcc.m_compensation = (qp->m_rate.GetBitRate() -
-    //   qp->intcc.m_curRate.GetBitRate()) * (time - qp->intcc.m_probeTimer +
-    //   32976);
-    // #if PRINT_LOG
-    //     printf("time:%lu maxc:%.5lf incstage:%u curRate:%.5lf compen:%lu",
-    //            Simulator::Now().GetTimeStep(),
-    //            max_c,
-    //            qp->intcc.m_incStage,
-    //            qp->intcc.m_curRate.GetBitRate() * 1e-9,
-    //            qp->intcc.m_compensation);
-    // #endif
-    // }
+    // qp->intcc.u =
+    //   (qp->intcc.u * (qp->m_baseRtt - dt) + U * dt) / double(qp->m_baseRtt);
+    if (dt < 32976) {
+      qp->intcc.u = (qp->intcc.u * (32976 - dt) + U * dt) / double(32976.0);
+    } else {
+      qp->intcc.u = U;
+    }
+    max_c = qp->intcc.u / m_targetUtil;
+    if (curtime >= qp->intcc.m_probeTimer && qp->intcc.m_maxU < 230.0) {
+      if (max_c >= m_targetUtil || qp->intcc.m_incStage >= m_maxStage) {
+#if PRINT_LOG
+        printf(" MIMD");
+        printf(" u=%.5lf max_c=%.5lf m_curRate=%.5lf",
+               qp->intcc.u,
+               max_c,
+               qp->intcc.m_curRate.GetBitRate() * 1e-9);
+#endif
+        qp->intcc.m_curRate = qp->intcc.m_curRate / max_c + m_rai;
+        qp->intcc.m_incStage = 0;
+      } else {
+        qp->intcc.m_curRate = qp->intcc.m_curRate + m_rai;
+        qp->intcc.m_incStage = qp->intcc.m_incStage + 1;
+      }
+      qp->intcc.m_compensation =
+        ((double(qp->m_rate.GetBitRate() * 1e-9) -
+          double(qp->intcc.m_curRate.GetBitRate() * 1e-9)) *
+         double(curtime - qp->intcc.m_probeTimer + 32976) * 1e-9) +
+        qp->intcc.m_compensation;
+      qp->intcc.m_maxU = qp->intcc.m_maxU + 1.0;
+#if PRINT_LOG
+      printf(" incstage:%u m_rate:%lf m_curRate:%lf time:%lu probeTimer:%lu "
+             "curRate:%.5lf compen:%.5lf up:%.5lf down: %lu",
+             qp->intcc.m_incStage,
+             (qp->m_rate.GetBitRate() * 1e-9),
+             (qp->intcc.m_curRate.GetBitRate() * 1e-9),
+             curtime,
+             qp->intcc.m_probeTimer,
+             qp->intcc.m_curRate.GetBitRate() * 1e-9,
+             qp->intcc.m_compensation,
+             (double(qp->m_rate.GetBitRate() * 1e-9) -
+              double(qp->intcc.m_curRate.GetBitRate() * 1e-9)),
+             (curtime - qp->intcc.m_probeTimer + 32976));
+#endif
+      qp->intcc.m_probeTimer = curtime + 32976;
+    }
     if (!fast_react) {
       DataRate new_rate;
-      // 量化计算
-      // new_rate = qp->m_rate.GetBitRate() - 2*(qp->intcc.m_compensation / qp->m_baseRtt);
       double para = 0.0;
-      if (qp->intcc.u < m_targetUtil + 0.001 && qp->intcc.u >= m_targetUtil) {
-        printf(" [Single]");
-        para = m_targetUtil / qp->intcc.u;
-        // qp->intcc.m_bketa =
-        //   (para - 1) * qp->intcc.m_curRate.GetBitRate() / B.GetBitRate();
-        new_rate = qp->m_rate * para + fairnessArg * m_rai;
+      if (abs(qp->intcc.m_compensation) < 0.01) {
+        printf(" one");
+        para =
+          2 * (qp->intcc.m_compensation / double(qp->m_baseRtt * 1e-9) * 1e9);
       } else {
-        printf(" [Multi]");
-        para = (3 * m_targetUtil / qp->intcc.u - 2);
-        if (para>1.25) para=1.25;
-        if (para<0.75) para=0.75;
-        // qp->intcc.m_bketa =
-        //   (para - 1) * qp->intcc.m_curRate.GetBitRate() / B.GetBitRate();
-        new_rate = qp->m_rate * para + fairnessArg * m_rai;
+        printf(" two");
+        para =
+          2 * (qp->intcc.m_compensation / double(qp->m_baseRtt * 1e-9) * 1e9);
       }
+// 量化计算
 #if PRINT_LOG
-      printf(" %.5lf %.5lf %.5lf (%.3lf) "
+      printf(" [change] %.5lf %.5lf", qp->intcc.m_compensation, para);
+#endif
+      new_rate = qp->m_rate.GetBitRate() - para;
+
+      // if (qp->intcc.u < m_targetUtil + 0.001 && qp->intcc.u >= m_targetUtil)
+      // {
+      //   printf(" [Single]");
+      //   para = m_targetUtil / qp->intcc.u;
+      //   // qp->intcc.m_bketa =
+      //   //   (para - 1) * qp->intcc.m_curRate.GetBitRate() / B.GetBitRate();
+      //   new_rate = qp->m_rate * para + fairnessArg * m_rai;
+      // } else {
+      //   printf(" [Multi]");
+      //   para = (3 * m_targetUtil / qp->intcc.u - 2);
+      //   if (para>1.25) para=1.25;
+      //   if (para<0.75) para=0.75;
+      //   // qp->intcc.m_bketa =
+      //   //   (para - 1) * qp->intcc.m_curRate.GetBitRate() / B.GetBitRate();
+      //   new_rate = qp->m_rate * para + fairnessArg * m_rai;
+      // }
+#if PRINT_LOG
+      printf(" %.5lf %.5lf (%.3lf) "
              "%.3lf %s %.3lf",
              qp->intcc.u,
              para,
-             qp->intcc.m_bketa,
              qp->intcc.m_curRate.GetBitRate() * 1e-9,
              qp->m_rate.GetBitRate() * 1e-9,
-             (qp->intcc.m_curRate < new_rate) ? "↑" : "↓",
+             (qp->m_rate < new_rate) ? "↑" : "↓",
              new_rate.GetBitRate() * 1e-9);
 #endif
       if (new_rate < m_minRate)
@@ -1620,8 +1835,9 @@ RdmaHw::UpdateRateCross(Ptr<RdmaQueuePair> qp,
       ChangeRate(qp, new_rate);
       // 参数更新
       qp->intcc.m_curRate = qp->m_rate;
-      qp->intcc.m_compensation = 0;
-      qp->intcc.m_probeTimer = Simulator::Now().GetTimeStep() + 32976;
+      qp->intcc.m_compensation = 0.0;
+      qp->intcc.m_maxU = 0.0;
+      qp->intcc.m_probeTimer = curtime + 32976;
       if (next_seq > qp->intcc.m_lastUpdateSeq)
         qp->intcc.m_lastUpdateSeq = next_seq; //+ rand() % 2 * m_mtu;
     }
@@ -1630,6 +1846,7 @@ RdmaHw::UpdateRateCross(Ptr<RdmaQueuePair> qp,
   printf("\n");
 #endif
 }
+#endif
 
 /**********************
  * TIMELY
@@ -1657,6 +1874,12 @@ RdmaHw::UpdateRateTimely(Ptr<RdmaQueuePair> qp,
 {
   uint32_t next_seq = qp->snd_nxt;
   uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
+  if (20000 == m_tmly_minRtt) {
+    IsDCFlow(qp, ch);
+    m_tmly_minRtt = qp->m_baseRtt;
+    m_tmly_TLow = qp->m_baseRtt * 1.1;
+    m_tmly_THigh = qp->m_baseRtt * 2.5;
+  }
   bool print = !us;
   if (qp->tmly.m_lastUpdateSeq != 0) { // not first RTT
     int64_t new_rtt_diff = (int64_t)rtt - (int64_t)qp->tmly.lastRtt;
@@ -1677,12 +1900,14 @@ RdmaHw::UpdateRateTimely(Ptr<RdmaQueuePair> qp,
              gradient,
              qp->tmly.m_curRate.GetBitRate() * 1e-9);
 #endif
-    if (rtt < m_tmly_TLow) {
-      inc = true;
-    } else if (rtt > m_tmly_THigh) {
-      c = 1 - m_tmly_beta * (1 - (double)m_tmly_THigh / rtt);
-      inc = false;
-    } else if (gradient <= 0) {
+    // if (rtt < m_tmly_TLow) {
+    //   inc = true;
+    // } else if (rtt > m_tmly_THigh) {
+    //   c = 1 - m_tmly_beta * (1 - (double)m_tmly_THigh / rtt);
+    //   inc = false;
+    // }
+    // else
+    if (gradient <= 0) {
       inc = true;
     } else {
       c = 1 - m_tmly_beta * gradient;
@@ -1734,10 +1959,11 @@ RdmaHw::FastReactTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 void
 RdmaHw::HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
+  qp->m_rateLog << Simulator::Now().GetTimeStep() << " "
+                << qp->m_rate.GetBitRate() << std::endl;
   uint32_t ack_seq = ch.ack.seq;
   uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
   bool new_batch = false;
-
   // update alpha
   qp->dctcp.m_ecnCnt += (cnp > 0);
   if (ack_seq > qp->dctcp.m_lastUpdateSeq) { // if full RTT feedback is
@@ -1794,8 +2020,6 @@ RdmaHw::HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
            qp->m_rate.GetBitRate() * 1e-9);
 #endif
     qp->m_rate = std::max(m_minRate, qp->m_rate * (1 - qp->dctcp.m_alpha / 2));
-    qp->m_rateLog << Simulator::Now().GetTimeStep() << " "
-                  << qp->m_rate.GetBitRate() << std::endl;
 #if PRINT_LOG
     printf("%.3lf\n", qp->m_rate.GetBitRate() * 1e-9);
 #endif
@@ -1806,8 +2030,6 @@ RdmaHw::HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
   // additive inc
   if (qp->dctcp.m_caState == 0 && new_batch) {
     qp->m_rate = std::min(qp->m_max_rate, qp->m_rate + m_dctcp_rai);
-    qp->m_rateLog << Simulator::Now().GetTimeStep() << " "
-                  << qp->m_rate.GetBitRate() << std::endl;
   }
 }
 
