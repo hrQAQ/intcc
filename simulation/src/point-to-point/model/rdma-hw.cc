@@ -8,7 +8,7 @@
 #include <fstream>
 #include <string>
 
-#include "cn-header.h"
+// #include "cn-header.h"
 #include "ns3/boolean.h"
 #include "ns3/data-rate.h"
 #include "ns3/double.h"
@@ -251,7 +251,7 @@ RdmaHw::AddQueuePair(uint64_t size,
                      Ipv4Address dip,
                      uint16_t sport,
                      uint16_t dport,
-                     uint32_t win,
+                     uint64_t win,
                      uint64_t baseRtt,
                      Callback<void> notifyAppFinish)
 {
@@ -260,6 +260,14 @@ RdmaHw::AddQueuePair(uint64_t size,
     CreateObject<RdmaQueuePair>(pg, sip, dip, sport, dport);
   qp->SetSize(size);
   qp->SetWin(win);
+  // Config hyperparameters
+  int destIP = (dip.Get() >> 8) & 0xffff;
+  int srcIP = (sip.Get() >> 8) & 0xffff;
+  if (destIP >= 15 && destIP <= 19 || srcIP >= 15 && srcIP <= 19) {
+    baseRtt = 5e7;
+  } else {
+    baseRtt = 32976;
+  }
   qp->SetBaseRtt(baseRtt);
   qp->SetVarWin(m_var_win);
   qp->SetAppNotifyCallback(notifyAppFinish);
@@ -271,12 +279,12 @@ RdmaHw::AddQueuePair(uint64_t size,
   uint64_t key = GetQpKey(dip.Get(), sport, pg);
   m_qpMap[key] = qp;
 
-  // set init variables
+  // Config init variables
   DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
   qp->m_rate = m_bps;
   // Config 为特定流设置初始速率
   // if (((qp->sip.Get() >> 8) & 0xffff) == 0) {
-  //   qp->m_rate = m_bps * 0.95;
+  //   qp->m_rate = m_bps;
   // }
   qp->m_max_rate = m_bps;
   if (m_cc_mode == 1) {
@@ -458,7 +466,7 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
 {
   uint16_t qIndex = ch.ack.pg;
   uint16_t port = ch.ack.dport;
-  uint32_t seq = ch.ack.seq;
+  uint64_t seq = ch.ack.seq;
   uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
   int i;
   Ptr<RdmaQueuePair> qp = GetQp(ch.sip, port, qIndex);
@@ -479,14 +487,14 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
     if (!m_backto0) {
       qp->Acknowledge(seq);
     } else {
-      uint32_t goback_seq = seq / m_chunk * m_chunk;
+      uint64_t goback_seq = seq / m_chunk * m_chunk;
       qp->Acknowledge(goback_seq);
     }
     if (qp->IsFinished()) {
       QpComplete(qp);
     }
     // 实验结束，进行吞吐量统计
-    if (4 < Simulator::Now().GetSeconds()) {
+    if (6 < Simulator::Now().GetSeconds()) {
       QpComplete(qp);
     }
     // Config 自定义流退出时间
@@ -497,6 +505,7 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
                  (qp->sip.Get() >> 8) & 0xffff,
                  qp->snd_nxt);
           QpComplete(qp);
+          return 0;
         }
       }
       if (((qp->sip.Get() >> 8) & 0xffff) == 1) {
@@ -505,6 +514,7 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
                  (qp->sip.Get() >> 8) & 0xffff,
                  qp->snd_nxt);
           QpComplete(qp);
+          return 0;
         }
       }
       if (((qp->sip.Get() >> 8) & 0xffff) == 2) {
@@ -513,6 +523,7 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
                  (qp->sip.Get() >> 8) & 0xffff,
                  qp->snd_nxt);
           QpComplete(qp);
+          return 0;
         }
       }
       if (((qp->sip.Get() >> 8) & 0xffff) == 3) {
@@ -521,6 +532,7 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
                  (qp->sip.Get() >> 8) & 0xffff,
                  qp->snd_nxt);
           QpComplete(qp);
+          return 0;
         }
       }
     }
@@ -560,6 +572,12 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
     uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.gear.ts;
     qp->m_rttLog << Simulator::Now().GetTimeStep() << " " << rtt << std::endl;
     HandleAckINTCC(qp, p, ch);
+  } else if (m_cc_mode == 14) {
+    uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
+    qp->m_rttLog << Simulator::Now().GetTimeStep() << " " << rtt << std::endl;
+    qp->m_rateLog << Simulator::Now().GetTimeStep() << " "
+                  << qp->m_rate.GetBitRate() << std::endl;
+    HandleAckGemini(qp, p, ch);
   }
   // ACK may advance the on-the-fly window, allowing more packets to send
   dev->TriggerTransmit();
@@ -582,7 +600,7 @@ RdmaHw::Receive(Ptr<Packet> p, CustomHeader& ch)
 }
 
 int
-RdmaHw::ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size)
+RdmaHw::ReceiverCheckSeq(uint64_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size)
 {
   uint32_t expected = q->ReceiverNextExpectedSeq;
   if (seq == expected) {
@@ -643,12 +661,12 @@ void
 RdmaHw::QpComplete(Ptr<RdmaQueuePair> qp)
 {
   NS_ASSERT(!m_qpCompleteCallback.IsNull());
-  printf("%u %u %u %u %lu\n",
-          (qp->sip.Get() >> 8) & 0xffff,
-          (qp->dip.Get() >> 8) & 0xffff,
-          qp->sport,
-          qp->dport,
-          qp->snd_nxt);
+  printf("Thouput: %u %u %u %u %lu\n",
+         (qp->sip.Get() >> 8) & 0xffff,
+         (qp->dip.Get() >> 8) & 0xffff,
+         qp->sport,
+         qp->dport,
+         qp->snd_nxt);
   if (m_cc_mode == 1) {
     Simulator::Cancel(qp->mlx.m_eventUpdateAlpha);
     Simulator::Cancel(qp->mlx.m_eventDecreaseRate);
@@ -993,7 +1011,7 @@ RdmaHw::HyperIncreaseMlx(Ptr<RdmaQueuePair> q)
 void
 RdmaHw::HandleAckHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
-  uint32_t ack_seq = ch.ack.seq;
+  uint64_t ack_seq = ch.ack.seq;
   // update rate
   if (ack_seq >
       qp->hp.m_lastUpdateSeq) { // if full RTT feedback is ready, do full update
@@ -1009,7 +1027,7 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp,
                      CustomHeader& ch,
                      bool fast_react)
 {
-  uint32_t next_seq = qp->snd_nxt;
+  uint64_t next_seq = qp->snd_nxt;
   IntHeader& ih = ch.ack.ih;
   if (qp->hp.m_lastUpdateSeq == 0) { // first RTT
     qp->hp.m_lastUpdateSeq = next_seq;
@@ -1174,10 +1192,10 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp,
               new_rate = qp->hp.hopState[i].Rc;
           }
         }
-#if PRINT_LOG
-        printf("\n");
-#endif
       }
+#if PRINT_LOG
+      printf("\n");
+#endif
       if (updated_any) {
         ChangeRate(qp, new_rate);
         qp->m_rateLog << Simulator::Now().GetTimeStep() << " "
@@ -1243,7 +1261,7 @@ RdmaHw::IsDCFlow(Ptr<RdmaQueuePair> qp, CustomHeader& ch)
 void
 RdmaHw::HandleAckINTCC(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
-  uint32_t seq = ch.ack.seq;
+  uint64_t seq = ch.ack.seq;
   bool fast_react = true;
   if (seq > qp->intcc.m_lastUpdateSeq) {
     fast_react = false;
@@ -1311,7 +1329,7 @@ RdmaHw::UpdateRateIntra(Ptr<RdmaQueuePair> qp,
                         CustomHeader& ch,
                         bool fast_react)
 {
-  uint32_t next_seq = qp->snd_nxt;
+  uint64_t next_seq = qp->snd_nxt;
   IntHeader& ih = ch.ack.ih;
 #if PRINT_LOG
   // time RATE stage flowtype src dst sport dport [seqs]
@@ -1529,7 +1547,7 @@ RdmaHw::UpdateRateCross(Ptr<RdmaQueuePair> qp,
 {
   qp->m_rateLog << Simulator::Now().GetTimeStep() << " "
                 << qp->m_rate.GetBitRate() << std::endl;
-  uint32_t next_seq = qp->snd_nxt;
+  uint64_t next_seq = qp->snd_nxt;
   IntHeader& ih = ch.ack.ih;
   uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.gear.ts;
   uint64_t fairnessArg = std::min(rtt / 32976, uint64_t(2.0));
@@ -1673,7 +1691,7 @@ RdmaHw::UpdateRateCross(Ptr<RdmaQueuePair> qp,
 {
   qp->m_rateLog << Simulator::Now().GetTimeStep() << " "
                 << qp->m_rate.GetBitRate() << std::endl;
-  uint32_t next_seq = qp->snd_nxt;
+  uint64_t next_seq = qp->snd_nxt;
   IntHeader& ih = ch.ack.ih;
   uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.gear.ts;
   uint64_t fairnessArg = std::min(rtt / 32976, uint64_t(1.0));
@@ -1692,7 +1710,7 @@ RdmaHw::UpdateRateCross(Ptr<RdmaQueuePair> qp,
          qp->intcc.m_lastUpdateSeq,
          ch.ack.seq,
          next_seq);
-  // for (uint32_t i = 0; i < ih.gear.nhop; i++)
+  // for (uint64_t i = 0; i < ih.gear.nhop; i++)
   //   printf(" [%u] %u(%u) %lu(%lu) %lu(%lu)",
   //          i,
   //          ih.gear.hop[i].GetQlen(),
@@ -1856,7 +1874,7 @@ RdmaHw::HandleAckTimely(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
   qp->m_rateLog << Simulator::Now().GetTimeStep() << " "
                 << qp->m_rate.GetBitRate() << std::endl;
-  uint32_t ack_seq = ch.ack.seq;
+  uint64_t ack_seq = ch.ack.seq;
   // update rate
   if (ack_seq >
       qp->tmly
@@ -1872,14 +1890,11 @@ RdmaHw::UpdateRateTimely(Ptr<RdmaQueuePair> qp,
                          CustomHeader& ch,
                          bool us)
 {
-  uint32_t next_seq = qp->snd_nxt;
+  uint64_t next_seq = qp->snd_nxt;
   uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
-  if (20000 == m_tmly_minRtt) {
-    IsDCFlow(qp, ch);
-    m_tmly_minRtt = qp->m_baseRtt;
-    m_tmly_TLow = qp->m_baseRtt * 1.1;
-    m_tmly_THigh = qp->m_baseRtt * 2.5;
-  }
+  m_tmly_minRtt = qp->m_baseRtt;
+  m_tmly_TLow = qp->m_baseRtt * 1.1;
+  m_tmly_THigh = qp->m_baseRtt * 2;
   bool print = !us;
   if (qp->tmly.m_lastUpdateSeq != 0) { // not first RTT
     int64_t new_rtt_diff = (int64_t)rtt - (int64_t)qp->tmly.lastRtt;
@@ -1902,12 +1917,11 @@ RdmaHw::UpdateRateTimely(Ptr<RdmaQueuePair> qp,
 #endif
     // if (rtt < m_tmly_TLow) {
     //   inc = true;
-    // } else if (rtt > m_tmly_THigh) {
-    //   c = 1 - m_tmly_beta * (1 - (double)m_tmly_THigh / rtt);
-    //   inc = false;
-    // }
-    // else
-    if (gradient <= 0) {
+    // } else 
+    if (rtt > m_tmly_THigh) {
+      c = 1 - m_tmly_beta * (1 - (double)m_tmly_THigh / rtt);
+      inc = false;
+    } else if (gradient <= 0) {
       inc = true;
     } else {
       c = 1 - m_tmly_beta * gradient;
@@ -1961,7 +1975,7 @@ RdmaHw::HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
   qp->m_rateLog << Simulator::Now().GetTimeStep() << " "
                 << qp->m_rate.GetBitRate() << std::endl;
-  uint32_t ack_seq = ch.ack.seq;
+  uint64_t ack_seq = ch.ack.seq;
   uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
   bool new_batch = false;
   // update alpha
@@ -2044,7 +2058,7 @@ RdmaHw::SetPintSmplThresh(double p)
 void
 RdmaHw::HandleAckHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 {
-  uint32_t ack_seq = ch.ack.seq;
+  uint64_t ack_seq = ch.ack.seq;
   if (rand() % 65536 >= pint_smpl_thresh)
     return;
   // update rate
@@ -2063,7 +2077,7 @@ RdmaHw::UpdateRateHpPint(Ptr<RdmaQueuePair> qp,
                          CustomHeader& ch,
                          bool fast_react)
 {
-  uint32_t next_seq = qp->snd_nxt;
+  uint64_t next_seq = qp->snd_nxt;
   if (qp->hpccPint.m_lastUpdateSeq == 0) { // first RTT
     qp->hpccPint.m_lastUpdateSeq = next_seq;
   } else {
@@ -2097,5 +2111,140 @@ RdmaHw::UpdateRateHpPint(Ptr<RdmaQueuePair> qp,
     }
   }
 }
+
+/***********************
+ * Gemini
+ ************************/
+void
+RdmaHw::HandleAckGemini(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
+{
+  uint64_t ack_seq = ch.ack.seq;
+  uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
+  uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
+  bool new_batch = false;
+  // update alpha
+  qp->gemini.m_ecnCnt += (cnp > 0);
+  if (ack_seq >
+      qp->gemini
+        .m_lastUpdateSeq) { // if full RTT feedback is ready, do alpha update
+    new_batch = true;
+#if PRINT_LOG
+    printf("%lu %s %u %u [%lu,%u,%lu] %.3lf->",
+           Simulator::Now().GetTimeStep(),
+           "alpha",
+           (qp->sip.Get() >> 8) & 0xffff,
+           (qp->dip.Get() >> 8) & 0xffff,
+           qp->gemini.m_lastUpdateSeq,
+           ch.ack.seq,
+           qp->snd_nxt,
+           qp->gemini.m_alpha);
+#endif
+    if (qp->gemini.m_lastUpdateSeq == 0) { // first RTT
+      qp->gemini.m_lastUpdateSeq = qp->snd_nxt;
+      qp->gemini.m_batchSizeOfAlpha = qp->snd_nxt / m_mtu + 1;
+    } else {
+      double frac = std::min(
+        1.0, double(qp->gemini.m_ecnCnt) / qp->gemini.m_batchSizeOfAlpha);
+      qp->gemini.m_alpha = (1 - m_g) * qp->gemini.m_alpha + m_g * frac;
+      qp->gemini.m_lastUpdateSeq = qp->snd_nxt;
+      qp->gemini.m_ecnCnt = 0;
+      qp->gemini.m_batchSizeOfAlpha = (qp->snd_nxt - ack_seq) / m_mtu + 1;
+#if PRINT_LOG
+      printf("%.3lf F:%.3lf", qp->gemini.m_alpha, frac);
+#endif
+    }
+#if PRINT_LOG
+    printf("\n");
+#endif
+  }
+
+  // check cwr exit
+  if (qp->gemini.m_caState == 1) {
+    if (ack_seq > qp->gemini.m_highSeq)
+      qp->gemini.m_caState = 0;
+  }
+  int congested_dcn = 0, congested_wan = 0;
+  double T =
+    5 * 1000 * 1000; // Threshold for delay-based congestion control = 5ms
+  if (cnp) {
+    congested_dcn = 1;
+  }
+  // if (qp->gemini.m_rtt_min > T + qp->m_baseRtt) {
+  //   congested_wan = 1;
+  // }
+  double beta = 0.2; // Parameter for window reduction in WAN = 0.2
+  double H = 3e-6;   // Parameter for congestion window inc = 1.2e-7
+  double C = 10e9;   // Link capacity = 100Gbps
+  double rtt_base = qp->m_baseRtt * 1e-9; // s
+  double K = C * 32976 * 1e-9 / 7;
+  if (congested_dcn || congested_wan) {
+    // check if need to reduce rate: ECN and not in CWR
+    if (qp->gemini.m_caState == 0) {
+      double F = 4 * K / (C * rtt_base + K);
+      F = std::max(F, 0.05);
+      double f_dcn = qp->gemini.m_alpha * F * congested_dcn;
+      double f_wan = beta * congested_wan;
+      double f_congestion = std::max(f_dcn, f_wan);
+#if PRINT_LOG
+      printf("%lu %s %u %u %.3lf %.3lf %.3lf %.3lf %.3lf->",
+             Simulator::Now().GetTimeStep(),
+             "rate reduce",
+             (qp->sip.Get() >> 8) & 0xffff,
+             (qp->dip.Get() >> 8) & 0xffff,
+             F,
+             qp->gemini.m_alpha,
+             f_dcn,
+             f_wan,
+             qp->m_rate.GetBitRate() * 1e-9);
+#endif
+      qp->m_rate = std::max(m_minRate, qp->m_rate * (1 - f_congestion));
+      qp->m_rate = std::min(qp->m_max_rate, qp->m_rate);
+#if PRINT_LOG
+      printf("%.3lf\n", qp->m_rate.GetBitRate() * 1e-9);
+#endif
+      qp->gemini.m_caState = 1;
+      qp->gemini.m_highSeq = qp->snd_nxt;
+    }
+  } else {
+    double h = H * C * rtt_base;
+#if PRINT_LOG
+    printf("%lu %s %u %u %lu %lu %u %.3lf %.3lf->",
+           Simulator::Now().GetTimeStep(),
+           "rate inc",
+           (qp->sip.Get() >> 8) & 0xffff,
+           (qp->dip.Get() >> 8) & 0xffff,
+           qp->m_baseRtt,
+           qp->gemini.m_batchSizeOfAlpha,
+           h,
+           qp->m_rate.GetBitRate() * 1e-9);
+#endif
+    // if (h < 0.1)
+    //   h = 0.1;
+    // else if (h > 5)
+    //   h = 5;
+    if (qp->gemini.m_incstage >= qp->gemini.m_batchSizeOfAlpha / h) {
+      qp->gemini.m_incstage = 0;
+      DataRate add = DataRate(m_mtu * 8 / rtt_base);
+      qp->m_rate = qp->m_rate + add;
+#if PRINT_LOG
+      printf("(%.3lf) add:%.3lf",
+             qp->m_rate.GetBitRate() * 1e-9,
+             add.GetBitRate() * 1e-9);
+#endif
+    } else {
+      qp->gemini.m_incstage++;
+    }
+#if PRINT_LOG
+    printf(" inc: %d batch: %d\n",
+           qp->gemini.m_incstage,
+           qp->gemini.m_batchSizeOfAlpha);
+#endif
+    qp->m_rate = std::min(qp->m_max_rate, qp->m_rate);
+  }
+}
+
+/***********************
+ * Cubic
+ ************************/
 
 } // namespace ns3

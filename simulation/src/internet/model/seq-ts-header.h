@@ -41,11 +41,11 @@ public:
   /**
    * \param seq the sequence number
    */
-  void SetSeq (uint32_t seq);
+  void SetSeq (uint64_t seq);
   /**
    * \return the sequence number
    */
-  uint32_t GetSeq (void) const;
+  uint64_t GetSeq (void) const;
   /**
    * \return the time stamp
    */
@@ -63,7 +63,7 @@ private:
   virtual void Serialize (Buffer::Iterator start) const;
   virtual uint32_t Deserialize (Buffer::Iterator start);
 
-  uint32_t m_seq;
+  uint64_t m_seq;
   uint16_t m_pg;
 public:
   IntHeader ih;

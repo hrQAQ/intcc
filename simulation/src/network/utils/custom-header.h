@@ -92,8 +92,8 @@ public:
 	  struct {
 		  uint16_t sport;        //!< Source port
 		  uint16_t dport;   //!< Destination port
-		  uint32_t seq;  //!< Sequence number
-		  uint32_t ack;       //!< ACK number
+		  uint64_t seq;  //!< Sequence number
+		  uint64_t ack;       //!< ACK number
 		  uint8_t length;             //!< Length (really a uint4_t) in words.
 		  uint8_t tcpFlags;              //!< Flags (really a uint6_t)
 		  uint16_t windowSize;        //!< Window size
@@ -106,7 +106,7 @@ public:
 		  uint16_t payload_size;
 		  // SeqTsHeader
 		  uint16_t pg;
-		  uint32_t seq;
+		  uint64_t seq;
 		  IntHeader ih;
 	  } udp;
 	  // CnHeader
@@ -122,7 +122,7 @@ public:
 		  uint16_t sport, dport;
 		  uint16_t flags;
 		  uint16_t pg;
-		  uint32_t seq; // the qbb sequence number.
+		  uint64_t seq; // the qbb sequence number.
 		  IntHeader ih;
 	  } ack;
 	  // PauseHeader

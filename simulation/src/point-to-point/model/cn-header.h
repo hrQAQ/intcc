@@ -73,8 +73,8 @@ public:
   void SetECNBits (const uint8_t ecnbits);
   uint8_t GetECNBits () const;
 
-  void SetSeq (const uint32_t seq);
-  uint32_t GetSeq () const;
+  void SetSeq (const uint64_t seq);
+  uint64_t GetSeq () const;
 
   static TypeId GetTypeId (void);
   virtual TypeId GetInstanceTypeId (void) const;
@@ -93,7 +93,7 @@ private:
 		  uint16_t m_qfb;
 		  uint16_t m_total;
 	  };
-	  uint32_t m_seq;
+	  uint64_t m_seq;
   };
 };
 

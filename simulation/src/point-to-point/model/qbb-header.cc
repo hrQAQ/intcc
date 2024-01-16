@@ -28,7 +28,7 @@ namespace ns3 {
 		m_pg = pg;
 	}
 
-	void qbbHeader::SetSeq(uint32_t seq)
+	void qbbHeader::SetSeq(uint64_t seq)
 	{
 		m_seq = seq;
 	}
@@ -61,7 +61,7 @@ namespace ns3 {
 		return m_pg;
 	}
 
-	uint32_t qbbHeader::GetSeq() const
+	uint64_t qbbHeader::GetSeq() const
 	{
 		return m_seq;
 	}
@@ -119,7 +119,7 @@ namespace ns3 {
 		i.WriteU16(dport);
 		i.WriteU16(flags);
 		i.WriteU16(m_pg);
-		i.WriteU32(m_seq);
+		i.WriteU64(m_seq);
 
 		// write IntHeader
 		ih.Serialize(i);
@@ -132,7 +132,7 @@ namespace ns3 {
 		dport = i.ReadU16();
 		flags = i.ReadU16();
 		m_pg = i.ReadU16();
-		m_seq = i.ReadU32();
+		m_seq = i.ReadU64();
 
 		// read IntHeader
 		ih.Deserialize(i);

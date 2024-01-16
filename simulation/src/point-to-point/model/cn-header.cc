@@ -103,11 +103,11 @@ uint8_t CnHeader::GetECNBits() const
 	return m_ecnBits;
 }
 
-void CnHeader::SetSeq (const uint32_t seq){
+void CnHeader::SetSeq (const uint64_t seq){
 	m_seq = seq;
 }
 
-uint32_t CnHeader::GetSeq () const{
+uint64_t CnHeader::GetSeq () const{
 	return m_seq;
 }
 TypeId 
