@@ -1,5 +1,6 @@
 /data/
-/backup/
+/backup*/
+/tmp/
 analysis/*.txt
 analysis/Figures/
 analysis/traceinfo/
