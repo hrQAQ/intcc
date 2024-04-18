@@ -486,7 +486,7 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
       QpComplete(qp);
     }
     // 实验结束，进行吞吐量统计
-    if (4 < Simulator::Now().GetSeconds()) {
+    if (6 < Simulator::Now().GetSeconds()) {
       QpComplete(qp);
     }
     // Config 自定义流退出时间
