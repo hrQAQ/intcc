@@ -463,8 +463,7 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
   int i;
   Ptr<RdmaQueuePair> qp = GetQp(ch.sip, port, qIndex);
   if (qp == NULL) {
-    std::cout << "ERROR: "
-              << "Time: " << Simulator::Now().GetSeconds() << " "
+    std::cout << "ERROR: " << "Time: " << Simulator::Now().GetSeconds() << " "
               << "node:" << m_node->GetId() << ' '
               << (ch.l3Prot == 0xFC ? "ACK" : "NACK")
               << " NIC cannot find the flow\n";
@@ -485,8 +484,8 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
     if (qp->IsFinished()) {
       QpComplete(qp);
     }
-    // 实验结束，进行吞吐量统计
-    if (6 < Simulator::Now().GetSeconds()) {
+    // Config 实验结束，进行吞吐量统计
+    if (5 < Simulator::Now().GetSeconds()) {
       QpComplete(qp);
     }
     // Config 自定义流退出时间
@@ -500,7 +499,7 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
         }
       }
       if (((qp->sip.Get() >> 8) & 0xffff) == 1) {
-        if (6 < Simulator::Now().GetSeconds()) {
+        if (3 < Simulator::Now().GetSeconds()) {
           printf("Src: %u Throuput: %lu\n",
                  (qp->sip.Get() >> 8) & 0xffff,
                  qp->snd_nxt);
@@ -643,12 +642,13 @@ void
 RdmaHw::QpComplete(Ptr<RdmaQueuePair> qp)
 {
   NS_ASSERT(!m_qpCompleteCallback.IsNull());
-  printf("%u %u %u %u %lu\n",
-          (qp->sip.Get() >> 8) & 0xffff,
-          (qp->dip.Get() >> 8) & 0xffff,
-          qp->sport,
-          qp->dport,
-          qp->snd_nxt);
+  printf("Throuput: %u %u %u %u %lu %lu\n",
+         (qp->sip.Get() >> 8) & 0xffff,
+         (qp->dip.Get() >> 8) & 0xffff,
+         qp->sport,
+         qp->dport,
+         qp->snd_una,
+         qp->snd_nxt);
   if (m_cc_mode == 1) {
     Simulator::Cancel(qp->mlx.m_eventUpdateAlpha);
     Simulator::Cancel(qp->mlx.m_eventDecreaseRate);
@@ -1219,26 +1219,15 @@ RdmaHw::FastReactHp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 bool
 RdmaHw::IsDCFlow(Ptr<RdmaQueuePair> qp, CustomHeader& ch)
 {
+  // Config
   int dip = (qp->dip.Get() >> 8) & 0xffff;
   if (dip >= 15 && dip <= 19) {
     qp->m_flowType = false;
-    qp->m_baseRtt = 5e7;
     return false;
   } else if (dip >= 10 && dip <= 14) {
     qp->m_flowType = true;
-    qp->m_baseRtt = 32976;
     return true;
   }
-  // if (qp->m_flowType) {
-  //   return true;
-  // }
-  // if (rtt < 200 * 32976) {
-  //   qp->m_baseRtt = 32976;
-  //   qp->m_flowType = true;
-  //   return true;
-  // }
-  // qp->m_baseRtt = 5e7;
-  // return false;
 }
 void
 RdmaHw::HandleAckINTCC(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
@@ -1874,12 +1863,14 @@ RdmaHw::UpdateRateTimely(Ptr<RdmaQueuePair> qp,
 {
   uint32_t next_seq = qp->snd_nxt;
   uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
-  if (20000 == m_tmly_minRtt) {
-    IsDCFlow(qp, ch);
-    m_tmly_minRtt = qp->m_baseRtt;
-    m_tmly_TLow = qp->m_baseRtt * 1.1;
-    m_tmly_THigh = qp->m_baseRtt * 2.5;
-  }
+  double scale = qp->m_baseRtt / 32000;
+  if (scale > 400)
+    scale = 400;
+  double inc_scale = IsDCFlow(qp, ch) ? scale : scale / 10;
+  double dynamic_beta = scale * m_tmly_beta;
+  m_tmly_minRtt = qp->m_baseRtt;
+  m_tmly_TLow = qp->m_baseRtt * 1.05;
+  m_tmly_THigh = qp->m_baseRtt * 2.5;
   bool print = !us;
   if (qp->tmly.m_lastUpdateSeq != 0) { // not first RTT
     int64_t new_rtt_diff = (int64_t)rtt - (int64_t)qp->tmly.lastRtt;
@@ -1910,16 +1901,16 @@ RdmaHw::UpdateRateTimely(Ptr<RdmaQueuePair> qp,
     if (gradient <= 0) {
       inc = true;
     } else {
-      c = 1 - m_tmly_beta * gradient;
+      c = 1 - dynamic_beta * gradient;
       if (c < 0)
         c = 0;
       inc = false;
     }
     if (inc) {
       if (qp->tmly.m_incStage < 5) {
-        qp->m_rate = qp->tmly.m_curRate + m_rai;
+        qp->m_rate = qp->tmly.m_curRate + inc_scale * m_rai;
       } else {
-        qp->m_rate = qp->tmly.m_curRate + m_rhai;
+        qp->m_rate = qp->tmly.m_curRate + inc_scale * m_rhai;
       }
       if (qp->m_rate > qp->m_max_rate)
         qp->m_rate = qp->m_max_rate;

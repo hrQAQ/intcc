@@ -1,0 +1,10 @@
+2
+0 10 3 100 1000000000000 0.000000000
+5 15 3 100 1000000000000 0.000000000
+
+
+additional flow type: WAN
+additional flow start time: 1.0
+additional flow stop time: 3.0
+SIMULATOR_STOP_TIME 5.0
+
