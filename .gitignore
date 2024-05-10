@@ -1,5 +1,5 @@
 /data/
-/backup/
+/backup*/
 analysis/*.txt
 analysis/Figures/
 analysis/traceinfo/
@@ -9,3 +9,4 @@ simulation/mix/*.txt
 *.tmp
 *.log
 *.pyc
+/tmp/
