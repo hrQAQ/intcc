@@ -36,6 +36,7 @@ class RdmaHw : public Object {
     bool m_backto0;
     bool m_var_win, m_fast_react;
     bool m_rateBound;
+    bool measure_th = true;
     std::vector<RdmaInterfaceMgr> m_nic;                           // list of running nic controlled by this RdmaHw
     std::unordered_map<uint64_t, Ptr<RdmaQueuePair>> m_qpMap;      // mapping from uint64_t to qp
     std::unordered_map<uint64_t, Ptr<RdmaRxQueuePair>> m_rxQpMap;  // mapping from uint64_t to rx qp

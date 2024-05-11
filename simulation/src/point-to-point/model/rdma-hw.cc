@@ -470,6 +470,17 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
     return 0;
   }
 
+  if (measure_th && Simulator::Now().GetSeconds() > 12) {
+    measure_th = false;
+    printf("Throuput init: %u %u %u %u %lu %lu\n",
+           (qp->sip.Get() >> 8) & 0xffff,
+           (qp->dip.Get() >> 8) & 0xffff,
+           qp->sport,
+           qp->dport,
+           qp->snd_una,
+           qp->snd_nxt);
+  }
+
   uint32_t nic_idx = GetNicIdxOfQp(qp);
   Ptr<QbbNetDevice> dev = m_nic[nic_idx].dev;
   if (m_ack_interval == 0)
@@ -485,7 +496,7 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
       QpComplete(qp);
     }
     // Config 实验结束，进行吞吐量统计
-    if (5 < Simulator::Now().GetSeconds()) {
+    if (20 < Simulator::Now().GetSeconds()) {
       QpComplete(qp);
     }
     // Config 自定义流退出时间
@@ -642,7 +653,7 @@ void
 RdmaHw::QpComplete(Ptr<RdmaQueuePair> qp)
 {
   NS_ASSERT(!m_qpCompleteCallback.IsNull());
-  printf("Throuput: %u %u %u %u %lu %lu\n",
+  printf("Throuput end: %u %u %u %u %lu %lu\n",
          (qp->sip.Get() >> 8) & 0xffff,
          (qp->dip.Get() >> 8) & 0xffff,
          qp->sport,
