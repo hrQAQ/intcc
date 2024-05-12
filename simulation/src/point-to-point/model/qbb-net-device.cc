@@ -432,6 +432,9 @@ namespace ns3 {
 		SwitchSend(0, p, ch);
 	}
 
+	
+
+
 	bool
 		QbbNetDevice::Attach(Ptr<QbbChannel> ch)
 	{
