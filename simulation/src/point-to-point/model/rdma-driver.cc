@@ -60,7 +60,7 @@ void RdmaDriver::SetRdmaHw(Ptr<RdmaHw> rdma){
 	m_rdma = rdma;
 }
 
-void RdmaDriver::AddQueuePair(uint64_t size, uint16_t pg, Ipv4Address sip, Ipv4Address dip, uint16_t sport, uint16_t dport, uint32_t win, uint64_t baseRtt, Callback<void> notifyAppFinish){
+void RdmaDriver::AddQueuePair(uint64_t size, uint16_t pg, Ipv4Address sip, Ipv4Address dip, uint16_t sport, uint16_t dport, uint64_t win, uint64_t baseRtt, Callback<void> notifyAppFinish){
 	m_rdma->AddQueuePair(size, pg, sip, dip, sport, dport, win, baseRtt, notifyAppFinish);
 }
 

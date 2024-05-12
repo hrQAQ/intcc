@@ -81,7 +81,7 @@ RdmaClient::GetTypeId (void)
                    "Bound of on-the-fly packets",
                    UintegerValue (0),
                    MakeUintegerAccessor (&RdmaClient::m_win),
-                   MakeUintegerChecker<uint32_t> ())
+                   MakeUintegerChecker<uint64_t> ())
     .AddAttribute ("BaseRtt",
                    "Base Rtt",
                    UintegerValue (0),

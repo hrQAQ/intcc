@@ -142,8 +142,8 @@ void CustomHeader::Serialize (Buffer::Iterator start) const{
 	  if (l3Prot == 0x6){ // TCP
 		  i.WriteHtonU16 (tcp.sport);
 		  i.WriteHtonU16 (tcp.dport);
-		  i.WriteHtonU32 (tcp.seq);
-		  i.WriteHtonU32 (tcp.ack);
+		  i.WriteHtonU64 (tcp.seq);
+		  i.WriteHtonU64 (tcp.ack);
 		  i.WriteHtonU16 (tcp.length << 12 | tcp.tcpFlags); //reserved bits are all zero
 		  i.WriteHtonU16 (tcp.windowSize);
 		  i.WriteHtonU16 (0);
@@ -159,7 +159,7 @@ void CustomHeader::Serialize (Buffer::Iterator start) const{
 		  i.WriteHtonU16 (udp.payload_size);
 		  i.WriteHtonU16 (0);
 		  // SeqTsHeader
-		  i.WriteHtonU32 (udp.seq);
+		  i.WriteHtonU64 (udp.seq);
 		  i.WriteHtonU16 (udp.pg);
 		  udp.ih.Serialize(i);
 	  }else if (l3Prot == 0xFF){ // CNP
@@ -173,7 +173,7 @@ void CustomHeader::Serialize (Buffer::Iterator start) const{
 		  i.WriteU16(ack.dport);
 		  i.WriteU16(ack.flags);
 		  i.WriteU16(ack.pg);
-		  i.WriteU32(ack.seq);
+		  i.WriteU64(ack.seq);
 		  udp.ih.Serialize(i);
 	  }else if (l3Prot == 0xFE){ // PFC
 		  i.WriteU32 (pfc.time);
@@ -256,8 +256,8 @@ CustomHeader::Deserialize (Buffer::Iterator start)
 		  i.Next(l2Size + l3Size);
 		  tcp.sport = i.ReadNtohU16 ();
 		  tcp.dport = i.ReadNtohU16 ();
-		  tcp.seq = i.ReadNtohU32 ();
-		  tcp.ack = i.ReadNtohU32 ();
+		  tcp.seq = i.ReadNtohU64 ();
+		  tcp.ack = i.ReadNtohU64 ();
 		  if (brief){
 			  tcp.tcpFlags = i.ReadNtohU16() & 0x3f;
 		  }else {
@@ -291,7 +291,7 @@ CustomHeader::Deserialize (Buffer::Iterator start)
 		  }
 
 		  // SeqTsHeader
-		  udp.seq = i.ReadNtohU32 ();
+		  udp.seq = i.ReadNtohU64 ();
 		  udp.pg =  i.ReadNtohU16 ();
 		  if (getInt)
 			  udp.ih.Deserialize(i);
@@ -309,7 +309,7 @@ CustomHeader::Deserialize (Buffer::Iterator start)
 		  ack.dport = i.ReadU16();
 		  ack.flags = i.ReadU16();
 		  ack.pg = i.ReadU16();
-		  ack.seq = i.ReadU32();
+		  ack.seq = i.ReadU64();
 		  if (getInt)
 			  ack.ih.Deserialize(i);
 		  l4Size = GetAckSerializedSize();

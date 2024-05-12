@@ -83,7 +83,7 @@ public:
 		TS = 1,
 		PINT = 2,
 		GEAR = 3,
-		NONE
+		NONE = 4
 	};
 	static Mode mode;
 	static int pint_bytes;

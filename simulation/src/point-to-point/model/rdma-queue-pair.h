@@ -25,7 +25,7 @@ class RdmaQueuePair : public Object {
     uint64_t snd_nxt, snd_una;  // next seq to send, the highest unacked seq
     uint16_t m_pg;
     uint16_t m_ipid;
-    uint32_t m_win;       // bound of on-the-fly packets
+    uint64_t m_win;       // bound of on-the-fly packets
     uint64_t m_baseRtt;   // base RTT of this qp
     DataRate m_max_rate;  // max rate
     bool m_var_win;       // variable window size
@@ -53,7 +53,7 @@ class RdmaQueuePair : public Object {
     } mlx;
     // hpcc状态
     struct {
-        uint32_t m_lastUpdateSeq;
+        uint64_t m_lastUpdateSeq;
         DataRate m_curRate;
         IntHop hop[IntHeader::maxHop];
         uint32_t keep[IntHeader::maxHop];
@@ -68,7 +68,7 @@ class RdmaQueuePair : public Object {
     } hp;
     // timely状态
     struct {
-        uint32_t m_lastUpdateSeq;
+        uint64_t m_lastUpdateSeq;
         DataRate m_curRate;
         uint32_t m_incStage;
         uint64_t lastRtt;
@@ -76,16 +76,28 @@ class RdmaQueuePair : public Object {
     } tmly;
     // dctcp状态
     struct {
-        uint32_t m_lastUpdateSeq;
+        uint64_t m_lastUpdateSeq;
         uint32_t m_caState;
-        uint32_t m_highSeq;  // when to exit cwr
+        uint64_t m_highSeq;  // when to exit cwr
         double m_alpha;
         uint32_t m_ecnCnt;
         uint32_t m_batchSizeOfAlpha;
     } dctcp;
+    // Gemini 状态
+    struct
+    {
+      uint64_t m_rtt_min; // Minimum RTT
+      uint64_t m_lastUpdateSeq;
+      uint32_t m_caState;
+      uint64_t m_highSeq; // when to exit cwr
+      double m_alpha;
+      uint32_t m_ecnCnt;
+      uint32_t m_batchSizeOfAlpha;
+      uint32_t m_incstage;
+    } gemini;
     // hpccPint状态
     struct {
-        uint32_t m_lastUpdateSeq;
+        uint64_t m_lastUpdateSeq;
         DataRate m_curRate;
         uint32_t m_incStage;
     } hpccPint;
@@ -96,7 +108,7 @@ class RdmaQueuePair : public Object {
         // 用于标识WAN流的利用率是否在目标范围内
         double epsilon = 0.01;
         // 上次更新时的包序号
-        uint32_t m_lastUpdateSeq;
+        uint64_t m_lastUpdateSeq;
         // 上次调整的链路利用率
         double m_lastUtilization;
         DataRate m_lastRate;
@@ -132,7 +144,7 @@ class RdmaQueuePair : public Object {
     void SetLogFile(string metric_mon_file_prefix);
     void SetUtarget(double utarget);
     void SetSize(uint64_t size);
-    void SetWin(uint32_t win);
+    void SetWin(uint64_t win);
     void SetBaseRtt(uint64_t baseRtt);
     void SetVarWin(bool v);
     void SetAppNotifyCallback(Callback<void> notifyAppFinish);
@@ -161,10 +173,10 @@ class RdmaRxQueuePair : public Object {  // Rx side queue pair
     uint32_t sip, dip;
     uint16_t sport, dport;
     uint16_t m_ipid;
-    uint32_t ReceiverNextExpectedSeq;
+    uint64_t ReceiverNextExpectedSeq;
     Time m_nackTimer;
     int32_t m_milestone_rx;
-    uint32_t m_lastNACK;
+    uint64_t m_lastNACK;
     EventId QcnTimerEvent;  // if destroy this rxQp, remember to cancel this timer
 
     static TypeId GetTypeId(void);

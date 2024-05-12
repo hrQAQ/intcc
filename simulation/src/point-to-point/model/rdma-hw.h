@@ -54,7 +54,7 @@ class RdmaHw : public Object {
     static uint64_t GetQpKey(uint32_t dip, uint16_t sport, uint16_t pg);  // get the lookup key for m_qpMap
     Ptr<RdmaQueuePair> GetQp(uint32_t dip, uint16_t sport, uint16_t pg);  // get the qp
     uint32_t GetNicIdxOfQp(Ptr<RdmaQueuePair> qp);                        // get the NIC index of the qp
-    void AddQueuePair(uint64_t size, uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, uint16_t _sport, uint16_t _dport, uint32_t win, uint64_t baseRtt,
+    void AddQueuePair(uint64_t size, uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, uint16_t _sport, uint16_t _dport, uint64_t win, uint64_t baseRtt,
                       Callback<void> notifyAppFinish);  // add a new qp (new send)
     void DeleteQueuePair(Ptr<RdmaQueuePair> qp);
 
@@ -69,7 +69,7 @@ class RdmaHw : public Object {
                 CustomHeader &ch);  // callback function that the QbbNetDevice should use when receive packets. Only NIC can call this function. And do not call this upon PFC
 
     void CheckandSendQCN(Ptr<RdmaRxQueuePair> q);
-    int ReceiverCheckSeq(uint32_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size);
+    int ReceiverCheckSeq(uint64_t seq, Ptr<RdmaRxQueuePair> q, uint32_t size);
     void AddHeader(Ptr<Packet> p, uint16_t protocolNumber);
     static uint16_t EtherToPpp(uint16_t protocol);
 
@@ -167,6 +167,11 @@ class RdmaHw : public Object {
     void SetPintSmplThresh(double p);
     void HandleAckHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch);
     void UpdateRateHpPint(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader &ch, bool fast_react);
+
+    /*********************
+     * GEMINI
+     ********************/
+    void HandleAckGemini(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
 };
 
 } /* namespace ns3 */

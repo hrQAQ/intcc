@@ -65,6 +65,14 @@ RdmaQueuePair::RdmaQueuePair(uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, ui
     dctcp.m_ecnCnt = 0;
     dctcp.m_batchSizeOfAlpha = 0;
 
+    gemini.m_lastUpdateSeq = 0;
+    gemini.m_caState = 0;
+    gemini.m_highSeq = 0;
+    gemini.m_alpha = 1.0;
+    gemini.m_ecnCnt = 0;
+    gemini.m_batchSizeOfAlpha = 0;
+    gemini.m_incstage = 0;
+
     hpccPint.m_lastUpdateSeq = 0;
     hpccPint.m_incStage = 0;
 
@@ -101,7 +109,7 @@ void RdmaQueuePair::SetUtarget(double utarget) {
 
 void RdmaQueuePair::SetSize(uint64_t size) { m_size = size; }
 
-void RdmaQueuePair::SetWin(uint32_t win) { m_win = win; }
+void RdmaQueuePair::SetWin(uint64_t win) { m_win = win; }
 
 void RdmaQueuePair::SetBaseRtt(uint64_t baseRtt) { m_baseRtt = baseRtt; }
 

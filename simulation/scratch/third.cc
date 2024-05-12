@@ -52,7 +52,9 @@ const string PATH_TO_OUTPUT_FILE = "../data/";
 // 3:hpcc 7:timely 10: hpcc-pint
 uint32_t cc_mode = 1;
 // 1: DCQCN, 3: HPCC, 7: TIMELY, 8: DCTCP, 10: HPCC-PINT, 13: GEAR}
-map<uint32_t, string> cc_mode_map = {{1, "DCQCN"}, {3, "HPCC"}, {7, "TIMELY"}, {8, "DCTCP"}, {13, "GEAR"}};
+map<uint32_t, string> cc_mode_map = { { 1, "DCQCN" },  { 3, "HPCC" },
+                                      { 7, "TIMELY" }, { 8, "DCTCP" },
+                                      { 13, "GEAR" },  { 14, "GEMINI" } };
 string cc_mode_name;
 bool enable_qcn = true, use_dynamic_pfc_threshold = true;
 uint32_t packet_payload_size = 1000, l2_chunk_size = 0, l2_ack_interval = 0;
@@ -150,6 +152,7 @@ void PrintProgress(Time interval) {
 void ReadFlowInput() {
     if (flow_input.idx < flow_num) {
         flowf >> flow_input.src >> flow_input.dst >> flow_input.pg >> flow_input.dport >> flow_input.maxPacketCount >> flow_input.start_time;
+        flow_input.maxPacketCount = -1;
         NS_ASSERT(n.Get(flow_input.src)->GetNodeType() == 0 && n.Get(flow_input.dst)->GetNodeType() == 0);
     }
 }
@@ -186,7 +189,7 @@ uint32_t ip_to_node_id(Ipv4Address ip) { return (ip.Get() >> 8) & 0xffff; }
 void qp_finish(FILE *fout, Ptr<RdmaQueuePair> q) {
     uint32_t sid = ip_to_node_id(q->sip), did = ip_to_node_id(q->dip);
     uint64_t base_rtt = pairRtt[sid][did], b = pairBw[sid][did];
-    uint32_t total_bytes =
+    uint64_t total_bytes =
         q->m_size + ((q->m_size - 1) / packet_payload_size + 1) *
                         (CustomHeader::GetStaticWholeHeaderSize() - IntHeader::GetStaticSize());  // translate to the minimum bytes required (with header but no INT)
     uint64_t standalone_fct = base_rtt + total_bytes * 8000000000lu / b;

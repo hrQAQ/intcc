@@ -7,7 +7,7 @@ TOPOLOGY_FILE mix/topology/congestion.txt
 TRACE_FILE mix/trace_node/congestion-trace.txt
 
 FLOW_FILE_NAME  test
-{Specifying different CC. 1: DCQCN, 3: HPCC, 7: TIMELY, 8: DCTCP, 10: HPCC-PINT, 13: GEAR}
+{Specifying different CC. 1: DCQCN, 3: HPCC, 7: TIMELY, 8: DCTCP, 10: HPCC-PINT, 13: GEAR, 14: GEMINI}
 CC_MODE  8
 QLEN_MON_START 0
 QLEN_MON_END 100000000

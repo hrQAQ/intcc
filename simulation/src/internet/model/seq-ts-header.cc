@@ -45,11 +45,11 @@ SeqTsHeader::SeqTsHeader ()
 }
 
 void
-SeqTsHeader::SetSeq (uint32_t seq)
+SeqTsHeader::SetSeq (uint64_t seq)
 {
   m_seq = seq;
 }
-uint32_t
+uint64_t
 SeqTsHeader::GetSeq (void) const
 {
   return m_seq;
@@ -100,14 +100,14 @@ SeqTsHeader::GetSerializedSize (void) const
 	return GetHeaderSize();
 }
 uint32_t SeqTsHeader::GetHeaderSize(void){
-	return 6 + IntHeader::GetStaticSize();
+	return 10 + IntHeader::GetStaticSize();
 }
 
 void
 SeqTsHeader::Serialize (Buffer::Iterator start) const
 {
   Buffer::Iterator i = start;
-  i.WriteHtonU32 (m_seq);
+  i.WriteHtonU64 (m_seq);
   i.WriteHtonU16 (m_pg);
 
   // write IntHeader
@@ -117,7 +117,7 @@ uint32_t
 SeqTsHeader::Deserialize (Buffer::Iterator start)
 {
   Buffer::Iterator i = start;
-  m_seq = i.ReadNtohU32 ();
+  m_seq = i.ReadNtohU64 ();
   m_pg =  i.ReadNtohU16 ();
 
   // read IntHeader

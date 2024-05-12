@@ -74,7 +74,7 @@ private:
 
   Ipv4Address m_sip, m_dip;
   uint16_t m_sport, m_dport;
-  uint32_t m_win; // bound of on-the-fly packets
+  uint64_t m_win; // bound of on-the-fly packets
   uint64_t m_baseRtt; // base Rtt
 };
 
