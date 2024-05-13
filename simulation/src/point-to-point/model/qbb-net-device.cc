@@ -432,7 +432,9 @@ namespace ns3 {
 		SwitchSend(0, p, ch);
 	}
 
-	
+	void QbbNetDevice::SendQcn(uint32_t qIndex, uint32_t type){
+		// TODO: implement QCN
+	}
 
 
 	bool

@@ -65,6 +65,7 @@ class RdmaHw : public Object {
     int ReceiveUdp(Ptr<Packet> p, CustomHeader &ch);
     int ReceiveCnp(Ptr<Packet> p, CustomHeader &ch);
     int ReceiveAck(Ptr<Packet> p, CustomHeader &ch);  // handle both ACK and NACK
+    int ReceiveQCN(Ptr<Packet> p, CustomHeader &ch);
     int Receive(Ptr<Packet> p,
                 CustomHeader &ch);  // callback function that the QbbNetDevice should use when receive packets. Only NIC can call this function. And do not call this upon PFC
 
@@ -172,6 +173,14 @@ class RdmaHw : public Object {
      * GEMINI
      ********************/
     void HandleAckGemini(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
+
+    /*********************
+     * Annulus
+     ********************/
+    DataRate m_ns_rate, m_e2e_rate;
+    void HandleAckAnnulus(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
+    void ReceiveQCN(Ptr<Packet> p, CustomHeader& ch);
+
 };
 
 } /* namespace ns3 */

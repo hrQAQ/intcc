@@ -44,6 +44,11 @@ TypeId SwitchNode::GetTypeId (void)
 			UintegerValue(9000),
 			MakeUintegerAccessor(&SwitchNode::m_maxRtt),
 			MakeUintegerChecker<uint32_t>())
+	.AddAttribute("QcnEnabled",
+			"Enable QCN feedback.",
+			BooleanValue(false),
+			MakeBooleanAccessor(&SwitchNode::m_qcnEnabled),
+			MakeBooleanChecker())
   ;
   return tid;
 }
@@ -107,6 +112,16 @@ void SwitchNode::CheckAndSendResume(uint32_t inDev, uint32_t qIndex){
 		m_mmu->SetResume(inDev, qIndex);
 	}
 }
+
+void SwitchNode::CheckAndSendQcn(uint32_t inDev, uint32_t qIndex, uint32_t pktsize){
+	Ptr<QbbNetDevice> device = DynamicCast<QbbNetDevice>(m_devices[inDev]);
+	// if bytes > M then sample packet and calculate Qlen related, if Fb indicate congestion, then switch should send QCN packet
+	if (m_mmu->CheckShouldFeedback(inDev, qIndex, pktsize)){
+		device->SendQcn(qIndex);
+		m_mmu->SetFeedback(inDev, qIndex);
+	}
+}
+
 
 void SwitchNode::SendToDev(Ptr<Packet>p, CustomHeader &ch){
 	int idx = GetOutDev(p, ch);

@@ -27,6 +27,10 @@
 24 26 1Gbps 5000ns 0.000000
 25 26 1Gbps 5000ns 0.000000
 
+
+# node_num switch_num wan_switch_num tor_switch_num link_num
+# dc_switch_num_id wan_switch_num_id tor_switch_num_id
+# links: src_id dest_id bandwidth delay error_ratio
 # topology graph:
 #     0 - 9
 #       |    

@@ -28,6 +28,14 @@ public:
 	bool CheckShouldResume(uint32_t port, uint32_t qIndex);
 	void SetPause(uint32_t port, uint32_t qIndex);
 	void SetResume(uint32_t port, uint32_t qIndex);
+
+	// Annulus QCN feedback
+	bool CheckShouldFeedback(uint32_t port, uint32_t qIndex, uint32_t pktsize);
+	void SetFeedback(uint32_t port, uint32_t qIndex);
+	int Mark_table(int qntz_Fb);
+	double Fb;
+
+
 	//void GetPauseClasses(uint32_t port, uint32_t qIndex);
 	//bool GetResumeClasses(uint32_t port, uint32_t qIndex);
 

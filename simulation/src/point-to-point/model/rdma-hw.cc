@@ -605,6 +605,8 @@ RdmaHw::Receive(Ptr<Packet> p, CustomHeader& ch)
     ReceiveAck(p, ch);
   } else if (ch.l3Prot == 0xFC) { // ACK 用于通知发送端接收成功
     ReceiveAck(p, ch);
+  } else if (ch.l3Prot == 0xFE) { // QCN 在TOR交换机上的前向反馈帧
+    ReceiveQCN(p, ch);
   }
   return 0;
 }
@@ -2249,7 +2251,18 @@ RdmaHw::HandleAckGemini(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 }
 
 /***********************
- * Cubic
+ * Anuulus
  ************************/
+
+int
+ReceiveQCN(Ptr<Packet> p, CustomHeader& ch)
+{
+  // TODO the logic of end host handle QCN packet, this is the logic for annulus near source control loop
+}
+
+void
+RdmaHw::HandleAckAnnulus(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch){
+
+}
 
 } // namespace ns3

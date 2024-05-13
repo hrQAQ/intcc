@@ -29,6 +29,7 @@ class SwitchNode : public Node{
 protected:
 	bool m_ecnEnabled;
 	bool m_intEnabled;
+	bool m_qcnEnabled;
 	uint32_t m_ccMode;
 	uint64_t m_maxRtt;
 
@@ -40,6 +41,7 @@ private:
 	static uint32_t EcmpHash(const uint8_t* key, size_t len, uint32_t seed);
 	void CheckAndSendPfc(uint32_t inDev, uint32_t qIndex);
 	void CheckAndSendResume(uint32_t inDev, uint32_t qIndex);
+	void CheckAndSendQcn(uint32_t inDev, uint32_t qIndex, uint32_t pktsize);
 public:
 	Ptr<SwitchMmu> m_mmu;
 

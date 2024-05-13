@@ -89,6 +89,36 @@ namespace ns3 {
 		paused[port][qIndex] = false;
 	}
 
+	// Annulus
+    bool SwitchMmu::CheckShouldFeedback(uint32_t ifindex, uint32_t qIndex, uint32_t pktsize){
+      	if (qIndex == 0)
+        	return false;
+		uint32_t Q_EQ = kmin[ifindex];
+      	uint32_t qlen = egress_bytes[ifindex][qIndex];
+		double W = 0.0625;
+		double Fb = (Q_EQ - qlen) - W * (qlen - qlen_old);
+		if(Fb < -Q_EQ * (2 * W + 1)) {
+            Fb = -Q_EQ * (2 * W + 1);
+        } else if (Fb > 0) {
+			Fb = 0;
+		}
+		int qntz_Fb;
+		bool generate_fb_frame = false;
+		m_time_to_mark -= pktsize;
+		if (m_time_to_mark < 0) {
+			if(qntz_Fb > 0) generate_fb_frame = true;
+			qlen_old = qlen;
+			int next_period = Mark_table(qntz_Fb);
+			// m_time_to_mark = rand(0.85, 1.15) * next_period;
+			m_time_to_mark = rand(0.85, 1.15) * next_period;
+		}
+    	return false;
+    }
+
+    void SwitchMmu::SetFeedback(uint32_t port, uint32_t qIndex){
+		//TODO implement mmu's qcn state
+	}
+
 	uint32_t SwitchMmu::GetPfcThreshold(uint32_t port){
 		return (buffer_size - total_hdrm - total_rsrv - shared_used_bytes) >> pfc_a_shift[port];
 	}
