@@ -478,15 +478,15 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
     return 0;
   }
 
-  if (measure_th && Simulator::Now().GetSeconds() > 12) {
+  // config Throuput init:
+  if (measure_th && Simulator::Now().GetSeconds() > 4) {
     measure_th = false;
-    printf("Throuput init: %u %u %u %u %lu %lu\n",
+    printf("Throuput init: %u %u %u %u %lu\n",
            (qp->sip.Get() >> 8) & 0xffff,
            (qp->dip.Get() >> 8) & 0xffff,
            qp->sport,
            qp->dport,
-           qp->snd_una,
-           qp->snd_nxt);
+           qp->snd_una);
   }
 
   uint32_t nic_idx = GetNicIdxOfQp(qp);
@@ -503,11 +503,11 @@ RdmaHw::ReceiveAck(Ptr<Packet> p, CustomHeader& ch)
     if (qp->IsFinished()) {
       QpComplete(qp);
     }
-    // Config 实验结束，进行吞吐量统计
-    if (20 < Simulator::Now().GetSeconds()) {
+    // Config Thouput end:
+    if (16 < Simulator::Now().GetSeconds()) {
       QpComplete(qp);
     }
-    // Config 自定义流退出时间
+    // Config flow exit
     if (0) {
       if (((qp->sip.Get() >> 8) & 0xffff) == 0) {
         if (7 < Simulator::Now().GetSeconds()) {
@@ -674,13 +674,12 @@ void
 RdmaHw::QpComplete(Ptr<RdmaQueuePair> qp)
 {
   NS_ASSERT(!m_qpCompleteCallback.IsNull());
-  printf("Throuput end: %u %u %u %u %lu %lu\n",
+  printf("Throuput end: %u %u %u %u %lu\n",
          (qp->sip.Get() >> 8) & 0xffff,
          (qp->dip.Get() >> 8) & 0xffff,
          qp->sport,
          qp->dport,
-         qp->snd_una,
-         qp->snd_nxt);
+         qp->snd_una);
   if (m_cc_mode == 1) {
     Simulator::Cancel(qp->mlx.m_eventUpdateAlpha);
     Simulator::Cancel(qp->mlx.m_eventDecreaseRate);
@@ -820,7 +819,7 @@ RdmaHw::ChangeRate(Ptr<RdmaQueuePair> qp, DataRate new_rate)
   qp->m_rate = new_rate;
 }
 
-#define PRINT_LOG 1
+#define PRINT_LOG 0
 /******************************
  * Mellanox's version of DCQCN
  *****************************/
@@ -2010,7 +2009,9 @@ RdmaHw::HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
     } else {
       double frac = std::min(
         1.0, double(qp->dctcp.m_ecnCnt) / qp->dctcp.m_batchSizeOfAlpha);
-      qp->dctcp.m_alpha = (1 - m_g) * qp->dctcp.m_alpha + m_g * frac;
+      // Config EWMA fraction for DCTCP
+      // qp->dctcp.m_alpha = (1 - m_g) * qp->dctcp.m_alpha + m_g * frac;
+      qp->dctcp.m_alpha = frac;
       qp->dctcp.m_lastUpdateSeq = qp->snd_nxt;
       qp->dctcp.m_ecnCnt = 0;
       qp->dctcp.m_batchSizeOfAlpha = (qp->snd_nxt - ack_seq) / m_mtu + 1;
