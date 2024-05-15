@@ -606,6 +606,7 @@ RdmaHw::Receive(Ptr<Packet> p, CustomHeader& ch)
   } else if (ch.l3Prot == 0xFC) { // ACK 用于通知发送端接收成功
     ReceiveAck(p, ch);
   } else if (ch.l3Prot == 0xFA) { // QCN 在TOR交换机上的前向反馈帧
+    printf("Receive QCN from ToR\n");
     ReceiveQCN(p, ch);
   }
   return 0;
@@ -2263,6 +2264,7 @@ RdmaHw::ReceiveQCN(Ptr<Packet> p, CustomHeader& ch)
 void
 RdmaHw::HandleAckAnnulus(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch){
   // E2E control loop: RATE INCREASE
+  
 }
 
 } // namespace ns3

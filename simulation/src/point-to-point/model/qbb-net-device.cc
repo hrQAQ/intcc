@@ -393,6 +393,7 @@ namespace ns3 {
 				// 		ih.hpcc.hop[0].GetBytes(),
 				// 		ih.hpcc.hop[0].GetQlen(),
 				// 		ih.hpcc.hop[0].GetLineRate());
+				
 				int ret = m_rdmaReceiveCb(packet, ch);
 				// TODO we may based on the ret do something
 			}
@@ -432,12 +433,20 @@ namespace ns3 {
 		SwitchSend(0, p, ch);
 	}
 
-	void QbbNetDevice::SendQcn(uint32_t qIndex, Ptr<Packet> packet, CustomHeader &ch){
-		// TODO: implement QCN
-		// 1. FBFrame.DA = IncomingFrame.SA
-		// 2. FBFrame.SA = SwitchMAC
-		// 3. FBFrame.
+	void QbbNetDevice::SendQcn(uint32_t qIndex, Ptr<Packet> packet, CustomHeader &ch){		
 		Ptr<Packet> p = Create<Packet>(0);
+		Ipv4Header ipv4h;  // Prepare IPv4 header
+		ipv4h.SetProtocol(0xFA);
+		ipv4h.SetSource(m_node->GetObject<Ipv4>()->GetAddress(m_ifIndex, 0).GetLocal());
+		// destination set to ch.sip
+		Ipv4Address dest(ch.sip);
+		ipv4h.SetDestination(dest);
+		ipv4h.SetPayloadSize(p->GetSize());
+		p->AddHeader(ipv4h);
+		CustomHeader ch2(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
+		// setting FbHeader
+		p->PeekHeader(ch2);
+		SwitchSend(0, p, ch2);
 	}
 
 

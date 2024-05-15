@@ -131,6 +131,7 @@ public:
 		  uint32_t qlen;
 		  uint8_t qIndex;
 	  } pfc;
+    // FeedbackHeader
     struct {
       uint16_t sport;
       uint16_t dport;
