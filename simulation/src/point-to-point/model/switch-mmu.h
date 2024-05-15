@@ -31,9 +31,12 @@ public:
 
 	// Annulus QCN feedback
 	bool CheckShouldFeedback(uint32_t port, uint32_t qIndex, uint32_t pktsize);
-	void SetFeedback(uint32_t port, uint32_t qIndex);
-	int Mark_table(int qntz_Fb);
+	int MarkTable(int qntz_Fb);
+	int GetHighestBit(int x);
 	double Fb;
+	int32_t m_time_to_mark;
+	uint32_t m_qlen_old;
+	
 
 
 	//void GetPauseClasses(uint32_t port, uint32_t qIndex);

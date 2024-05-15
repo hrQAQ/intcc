@@ -113,12 +113,19 @@ void SwitchNode::CheckAndSendResume(uint32_t inDev, uint32_t qIndex){
 	}
 }
 
-void SwitchNode::CheckAndSendQcn(uint32_t inDev, uint32_t qIndex, uint32_t pktsize){
+void SwitchNode::CheckAndSendQcn(uint32_t inDev, uint32_t qIndex, Ptr<Packet> p, CustomHeader &ch){
 	Ptr<QbbNetDevice> device = DynamicCast<QbbNetDevice>(m_devices[inDev]);
 	// if bytes > M then sample packet and calculate Qlen related, if Fb indicate congestion, then switch should send QCN packet
-	if (m_mmu->CheckShouldFeedback(inDev, qIndex, pktsize)){
-		device->SendQcn(qIndex);
-		m_mmu->SetFeedback(inDev, qIndex);
+	if (m_mmu->CheckShouldFeedback(inDev, qIndex, p->GetSize())){
+          CustomHeader ch2(CustomHeader::L2_Header | CustomHeader::L3_Header |
+                           CustomHeader::L4_Header);
+		  ch2.sip = ch.dip;
+		  ch2.dip = ch.sip;
+		  ch2.l3Prot = 0xFA;
+		  ch2.fb.qdelta = m_mmu->GetQlen(inDev, qIndex);
+		  ch2.fb.qoff = m_mmu->GetQoff(inDev, qIndex);
+		  ch2.fb.qntz_Fb = m_mmu->GetQntz_Fb(inDev, qIndex);
+          device->SendQcn(qIndex, p, ch);
 	}
 }
 

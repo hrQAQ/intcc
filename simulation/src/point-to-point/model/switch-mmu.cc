@@ -26,6 +26,10 @@ namespace ns3 {
 		reserve = 4 * 1024;
 		resume_offset = 3 * 1024;
 
+		// QCN initialize
+		m_qlen_old = 0;
+		m_time_to_mark = MarkTable(0);
+
 		// headroom
 		shared_used_bytes = 0;
 		memset(hdrm_bytes, 0, sizeof(hdrm_bytes));
@@ -93,30 +97,48 @@ namespace ns3 {
     bool SwitchMmu::CheckShouldFeedback(uint32_t ifindex, uint32_t qIndex, uint32_t pktsize){
       	if (qIndex == 0)
         	return false;
-		uint32_t Q_EQ = kmin[ifindex];
-      	uint32_t qlen = egress_bytes[ifindex][qIndex];
-		double W = 0.0625;
-		double Fb = (Q_EQ - qlen) - W * (qlen - qlen_old);
-		if(Fb < -Q_EQ * (2 * W + 1)) {
-            Fb = -Q_EQ * (2 * W + 1);
-        } else if (Fb > 0) {
-			Fb = 0;
-		}
-		int qntz_Fb;
+		// uint32_t Q_EQ = kmin[ifindex]/1000;
+		uint32_t Q_EQ = 100e3;
+      	uint32_t qlen = egress_bytes[ifindex][qIndex]/1000;
+		double W = 2;
+		double Fb = (qlen - Q_EQ) + W * (qlen - m_qlen_old);
+	
+		// uniform quantization of -Fb, qntz_Fb, uses most significant bits of -Fb. note that qntz_Fb is a positive integer.
+		// int m_qntz_Fb = 1<<GetHighestBit(-Fb);
+		// printf("Fb: %f, qntz_Fb: %d\n", Fb, m_qntz_Fb);
 		bool generate_fb_frame = false;
 		m_time_to_mark -= pktsize;
 		if (m_time_to_mark < 0) {
-			if(qntz_Fb > 0) generate_fb_frame = true;
-			qlen_old = qlen;
-			int next_period = Mark_table(qntz_Fb);
-			// m_time_to_mark = rand(0.85, 1.15) * next_period;
-			m_time_to_mark = rand(0.85, 1.15) * next_period;
+			if(Fb > 0) generate_fb_frame = true;
+			m_qlen_old = qlen;
+			// int next_period = MarkTable(m_qntz_Fb);
+			// m_time_to_mark = next_period * UniformVariable(0.85, 1.15).GetValue();
+			m_time_to_mark = 15e3;
 		}
     	return false;
     }
 
-    void SwitchMmu::SetFeedback(uint32_t port, uint32_t qIndex){
-		//TODO implement mmu's qcn state
+	int SwitchMmu::GetHighestBit(int x) {
+		int pos = 0;
+		for (int i = 0; i <= 8 * sizeof(int); i++, x >>= 1) {
+			if (x & 1) {
+				pos = i;
+			}
+		}
+		return pos;
+	}
+
+	int SwitchMmu::MarkTable(int qntz_Fb){
+		switch (qntz_Fb/8) {
+			case 0: return 150e3;
+			case 1: return 75e3;
+			case 2: return 50e3;
+			case 3: return 37.5e3;
+			case 4: return 30e3;
+			case 5: return 25e3;
+			case 6: return 21.5e3;
+			case 7: return 18.5e3;
+		}
 	}
 
 	uint32_t SwitchMmu::GetPfcThreshold(uint32_t port){

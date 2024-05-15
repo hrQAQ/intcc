@@ -126,7 +126,8 @@ public:
    void TriggerTransmit(void);
 
 	void SendPfc(uint32_t qIndex, uint32_t type); // type: 0 = pause, 1 = resume
-  void SendQcn(uint32_t qIndex); // send QCN message
+  // FBframe
+	void SendQcn(uint32_t qIndex, Ptr<Packet> packet, CustomHeader &ch);
 
 	TracedCallback<Ptr<const Packet>, uint32_t> m_traceEnqueue;
 	TracedCallback<Ptr<const Packet>, uint32_t> m_traceDequeue;

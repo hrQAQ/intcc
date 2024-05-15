@@ -432,8 +432,12 @@ namespace ns3 {
 		SwitchSend(0, p, ch);
 	}
 
-	void QbbNetDevice::SendQcn(uint32_t qIndex, uint32_t type){
+	void QbbNetDevice::SendQcn(uint32_t qIndex, Ptr<Packet> packet, CustomHeader &ch){
 		// TODO: implement QCN
+		// 1. FBFrame.DA = IncomingFrame.SA
+		// 2. FBFrame.SA = SwitchMAC
+		// 3. FBFrame.
+		Ptr<Packet> p = Create<Packet>(0);
 	}
 
 

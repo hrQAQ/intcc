@@ -605,7 +605,7 @@ RdmaHw::Receive(Ptr<Packet> p, CustomHeader& ch)
     ReceiveAck(p, ch);
   } else if (ch.l3Prot == 0xFC) { // ACK 用于通知发送端接收成功
     ReceiveAck(p, ch);
-  } else if (ch.l3Prot == 0xFE) { // QCN 在TOR交换机上的前向反馈帧
+  } else if (ch.l3Prot == 0xFA) { // QCN 在TOR交换机上的前向反馈帧
     ReceiveQCN(p, ch);
   }
   return 0;
@@ -1049,7 +1049,7 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp,
     for (uint32_t i = 0; i < ih.hpcc.nhop; i++)
       qp->hp.hop[i] = ih.hpcc.hop[i];
 #if PRINT_LOG
-    printf("%lu %s %d %d %u %u [%u,%u,%u] baseRTT:%lu\n",
+    printf("%lu %s %d %d %u %u [%lu,%lu,%lu] baseRTT:%lu\n",
            Simulator::Now().GetTimeStep(),
            fast_react ? "fast" : "update",
            (qp->sip.Get() >> 8) & 0xffff,
@@ -1072,7 +1072,7 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp,
     if (ih.hpcc.nhop <= IntHeader::maxHop) {
       double max_c = 0;
 #if PRINT_LOG
-      printf("%lu %s %d %d %u %u [%u,%u,%u]",
+      printf("%lu %s %d %d %u %u [%lu,%lu,%lu]",
              Simulator::Now().GetTimeStep(),
              fast_react ? "fast" : "update",
              (qp->sip.Get() >> 8) & 0xffff,
@@ -1337,7 +1337,7 @@ RdmaHw::UpdateRateIntra(Ptr<RdmaQueuePair> qp,
   // time RATE stage flowtype src dst sport dport [seqs]
   // iter{[i] hop[i].qlen(past) hop[i].bytes(past) hop[i].time(past)}
   // iter{[i] hop[i].txrate hop[i].u}
-  printf("%lu %.5lf %s %s %u %u %u %u [%u,%u,%u] incstage=%d",
+  printf("%lu %.5lf %s %s %u %u %u %u [%lu,%lu,%lu] incstage=%d",
          Simulator::Now().GetTimeStep(),
          qp->m_rate.GetBitRate() * 1e-9,
          fast_react ? "fast" : "update",
@@ -1554,7 +1554,7 @@ RdmaHw::UpdateRateCross(Ptr<RdmaQueuePair> qp,
   uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.gear.ts;
   uint64_t fairnessArg = std::min(rtt / 32976, uint64_t(2.0));
 #if PRINT_LOG
-  printf("%lu %s %s %u %u %u %u [%u,%u,%u]",
+  printf("%lu %s %s %u %u %u %u [%lu,%lu,%lu]",
          Simulator::Now().GetTimeStep(),
          fast_react ? "fast" : "update",
          qp->m_flowType ? "DC" : "WAN",
@@ -1990,7 +1990,7 @@ RdmaHw::HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
   if (ack_seq > qp->dctcp.m_lastUpdateSeq) { // if full RTT feedback is
                                              // ready, do alpha update
 #if PRINT_LOG
-    printf("%lu %s %u %u %u %u [%u,%u,%lu] %.3lf->",
+    printf("%lu %s %u %u %u %u [%lu,%lu,%lu] %.3lf->",
            Simulator::Now().GetTimeStep(),
            "alpha",
            (qp->sip.Get() >> 8) & 0xffff,
@@ -2136,7 +2136,7 @@ RdmaHw::HandleAckGemini(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
         .m_lastUpdateSeq) { // if full RTT feedback is ready, do alpha update
     new_batch = true;
 #if PRINT_LOG
-    printf("%lu %s %u %u [%lu,%u,%lu] %.3lf->",
+    printf("%lu %s %u %u [%lu,%lu,%lu] %.3lf->",
            Simulator::Now().GetTimeStep(),
            "alpha",
            (qp->sip.Get() >> 8) & 0xffff,
@@ -2215,7 +2215,7 @@ RdmaHw::HandleAckGemini(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
   } else {
     double h = H * C * rtt_base;
 #if PRINT_LOG
-    printf("%lu %s %u %u %lu %lu %u %.3lf %.3lf->",
+    printf("%lu %s %u %u %lu %u %.3lf %.3lf->",
            Simulator::Now().GetTimeStep(),
            "rate inc",
            (qp->sip.Get() >> 8) & 0xffff,
@@ -2255,14 +2255,14 @@ RdmaHw::HandleAckGemini(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
  ************************/
 
 int
-ReceiveQCN(Ptr<Packet> p, CustomHeader& ch)
+RdmaHw::ReceiveQCN(Ptr<Packet> p, CustomHeader& ch)
 {
-  // TODO the logic of end host handle QCN packet, this is the logic for annulus near source control loop
+  // Near Source Control Loop: only foucus on Rate decrease, rate increase is triggered by ack clocking
 }
 
 void
 RdmaHw::HandleAckAnnulus(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch){
-
+  // E2E control loop: RATE INCREASE
 }
 
 } // namespace ns3

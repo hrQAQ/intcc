@@ -131,6 +131,14 @@ public:
 		  uint32_t qlen;
 		  uint8_t qIndex;
 	  } pfc;
+    struct {
+      uint16_t sport;
+      uint16_t dport;
+      uint16_t pg;
+      uint8_t qntz_Fb;
+      uint32_t qoff;
+      uint32_t qdelta;
+    } fb;
   };
 
   uint8_t GetIpv4EcnBits (void) const;
