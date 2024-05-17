@@ -282,6 +282,12 @@ RdmaHw::AddQueuePair(uint64_t size,
   // Config init variables
   DataRate m_bps = m_nic[nic_idx].dev->GetDataRate();
   qp->m_rate = m_bps;
+
+  if (m_cc_mode == 15) {
+    qp->annulus.m_ns_rate = qp->m_rate;
+    qp->annulus.m_e2e_rate = qp->m_rate;
+  }
+
   // Config 为特定流设置初始速率
   // if (((qp->sip.Get() >> 8) & 0xffff) == 0) {
   //   qp->m_rate = m_bps;
@@ -605,6 +611,8 @@ RdmaHw::Receive(Ptr<Packet> p, CustomHeader& ch)
     ReceiveAck(p, ch);
   } else if (ch.l3Prot == 0xFC) { // ACK 用于通知发送端接收成功
     ReceiveAck(p, ch);
+  } else if (ch.l3Prot == 0xFA) { // QCN 在TOR交换机上的前向反馈帧
+    ReceiveQCN(p, ch);
   }
   return 0;
 }
@@ -1046,7 +1054,7 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp,
     for (uint32_t i = 0; i < ih.hpcc.nhop; i++)
       qp->hp.hop[i] = ih.hpcc.hop[i];
 #if PRINT_LOG
-    printf("%lu %s %d %d %u %u [%u,%u,%u] baseRTT:%lu\n",
+    printf("%lu %s %d %d %u %u [%lu,%lu,%lu] baseRTT:%lu\n",
            Simulator::Now().GetTimeStep(),
            fast_react ? "fast" : "update",
            (qp->sip.Get() >> 8) & 0xffff,
@@ -1069,7 +1077,7 @@ RdmaHw::UpdateRateHp(Ptr<RdmaQueuePair> qp,
     if (ih.hpcc.nhop <= IntHeader::maxHop) {
       double max_c = 0;
 #if PRINT_LOG
-      printf("%lu %s %d %d %u %u [%u,%u,%u]",
+      printf("%lu %s %d %d %u %u [%lu,%lu,%lu]",
              Simulator::Now().GetTimeStep(),
              fast_react ? "fast" : "update",
              (qp->sip.Get() >> 8) & 0xffff,
@@ -1334,7 +1342,7 @@ RdmaHw::UpdateRateIntra(Ptr<RdmaQueuePair> qp,
   // time RATE stage flowtype src dst sport dport [seqs]
   // iter{[i] hop[i].qlen(past) hop[i].bytes(past) hop[i].time(past)}
   // iter{[i] hop[i].txrate hop[i].u}
-  printf("%lu %.5lf %s %s %u %u %u %u [%u,%u,%u] incstage=%d",
+  printf("%lu %.5lf %s %s %u %u %u %u [%lu,%lu,%lu] incstage=%d",
          Simulator::Now().GetTimeStep(),
          qp->m_rate.GetBitRate() * 1e-9,
          fast_react ? "fast" : "update",
@@ -1551,7 +1559,7 @@ RdmaHw::UpdateRateCross(Ptr<RdmaQueuePair> qp,
   uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.gear.ts;
   uint64_t fairnessArg = std::min(rtt / 32976, uint64_t(2.0));
 #if PRINT_LOG
-  printf("%lu %s %s %u %u %u %u [%u,%u,%u]",
+  printf("%lu %s %s %u %u %u %u [%lu,%lu,%lu]",
          Simulator::Now().GetTimeStep(),
          fast_react ? "fast" : "update",
          qp->m_flowType ? "DC" : "WAN",
@@ -1921,7 +1929,7 @@ RdmaHw::UpdateRateTimely(Ptr<RdmaQueuePair> qp,
 #endif
     // if (rtt < m_tmly_TLow) {
     //   inc = true;
-    // } else 
+    // } else
     if (rtt > m_tmly_THigh) {
       c = 1 - m_tmly_beta * (1 - (double)m_tmly_THigh / rtt);
       inc = false;
@@ -1987,7 +1995,7 @@ RdmaHw::HandleAckDctcp(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
   if (ack_seq > qp->dctcp.m_lastUpdateSeq) { // if full RTT feedback is
                                              // ready, do alpha update
 #if PRINT_LOG
-    printf("%lu %s %u %u %u %u [%u,%u,%lu] %.3lf->",
+    printf("%lu %s %u %u %u %u [%lu,%lu,%lu] %.3lf->",
            Simulator::Now().GetTimeStep(),
            "alpha",
            (qp->sip.Get() >> 8) & 0xffff,
@@ -2135,7 +2143,7 @@ RdmaHw::HandleAckGemini(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
         .m_lastUpdateSeq) { // if full RTT feedback is ready, do alpha update
     new_batch = true;
 #if PRINT_LOG
-    printf("%lu %s %u %u [%lu,%u,%lu] %.3lf->",
+    printf("%lu %s %u %u [%lu,%lu,%lu] %.3lf->",
            Simulator::Now().GetTimeStep(),
            "alpha",
            (qp->sip.Get() >> 8) & 0xffff,
@@ -2214,7 +2222,7 @@ RdmaHw::HandleAckGemini(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
   } else {
     double h = H * C * rtt_base;
 #if PRINT_LOG
-    printf("%lu %s %u %u %lu %lu %u %.3lf %.3lf->",
+    printf("%lu %s %u %u %lu %u %.3lf %.3lf->",
            Simulator::Now().GetTimeStep(),
            "rate inc",
            (qp->sip.Get() >> 8) & 0xffff,
@@ -2250,7 +2258,164 @@ RdmaHw::HandleAckGemini(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
 }
 
 /***********************
- * Cubic
+ * Anuulus
  ************************/
+
+int
+RdmaHw::ReceiveQCN(Ptr<Packet> p, CustomHeader& ch)
+{
+  // Near Source Control Loop: only foucus on Rate decrease, rate increase is
+  // triggered by ack clocking log out ch.fb
+  Ptr<RdmaQueuePair> qp = GetQp(ch.sip, ch.fb.dport, ch.fb.pg);
+  if (qp == NULL) {
+    printf("No QP found\n");
+    return -1;
+  }
+  if (ch.fb.qntz_Fb > 0)
+    printf("Current Node: %u, Feedback: %u %u %u %u %u %u, GetQp: %u %u %u, "
+           "rate: %0.3lf\n",
+           m_node->GetId(),
+           ch.fb.sport,
+           ch.fb.dport,
+           ch.fb.pg,
+           ch.fb.qntz_Fb,
+           ch.fb.qoff,
+           ch.fb.qdelta,
+           (ch.sip >> 8) & 0xffff,
+           ch.fb.dport,
+           ch.fb.pg,
+           qp->m_rate.GetBitRate() * 1e-9);
+  if (ch.fb.qntz_Fb > 0) {
+    // update rate
+    double GD = 1;
+    double dec_factor = (1 - GD * ch.fb.qntz_Fb);
+    qp->annulus.m_ns_rate = qp->m_rate * dec_factor;
+    if (qp->annulus.m_ns_rate < m_minRate)
+      qp->annulus.m_ns_rate = m_minRate;
+    // drops in the smaller rate are signalled to trigger proportional drops in
+    // the rate set by the other control loop.
+    if (2 * qp->annulus.m_ns_rate < qp->annulus.m_e2e_rate) {
+      qp->annulus.m_e2e_rate = 2 * qp->annulus.m_ns_rate;
+    }
+    qp->m_rate = qp->annulus.m_ns_rate;
+  }
+}
+
+void
+RdmaHw::HandleAckAnnulus(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch)
+{
+  // E2E control loop
+  bool isIntra = IsDCFlow(qp, ch);
+  if (isIntra) {
+    // intra DC FLOW
+    uint64_t ack_seq = ch.ack.seq;
+    uint8_t cnp = (ch.ack.flags >> qbbHeader::FLAG_CNP) & 1;
+    bool new_batch = false;
+    // update alpha
+    qp->annulus.m_ecnCnt += (cnp > 0);
+    if (ack_seq > qp->annulus.m_lastUpdateSeq) { // if full RTT feedback is
+                                               // ready, do alpha update
+#if PRINT_LOG
+      printf("%lu %s %u %u %u %u [%lu,%lu,%lu] %.3lf->",
+             Simulator::Now().GetTimeStep(),
+             "alpha",
+             (qp->sip.Get() >> 8) & 0xffff,
+             (qp->dip.Get() >> 8) & 0xffff,
+             qp->sport,
+             qp->dport,
+             qp->annulus.m_lastUpdateSeq,
+             ch.ack.seq,
+             qp->snd_nxt,
+             qp->annulus.m_alpha);
+#endif
+      new_batch = true;
+      if (qp->annulus.m_lastUpdateSeq == 0) { // first RTT
+        qp->annulus.m_lastUpdateSeq = qp->snd_nxt;
+        qp->annulus.m_batchSizeOfAlpha = qp->snd_nxt / m_mtu + 1;
+      } else {
+        double frac = std::min(
+          1.0, double(qp->annulus.m_ecnCnt) / qp->annulus.m_batchSizeOfAlpha);
+        // Config EWMA fraction for annulus
+        // qp->annulus.m_alpha = (1 - m_g) * qp->annulus.m_alpha + m_g * frac;
+        qp->annulus.m_alpha = frac;
+        qp->annulus.m_lastUpdateSeq = qp->snd_nxt;
+        qp->annulus.m_ecnCnt = 0;
+        qp->annulus.m_batchSizeOfAlpha = (qp->snd_nxt - ack_seq) / m_mtu + 1;
+#if PRINT_LOG
+        printf("%.3lf F:%.3lf", qp->annulus.m_alpha, frac);
+#endif
+      }
+#if PRINT_LOG
+      printf("\n");
+#endif
+    }
+
+    // check cwr exit
+    if (qp->annulus.m_caState == 1) {
+      if (ack_seq > qp->annulus.m_highSeq)
+        qp->annulus.m_caState = 0;
+    }
+
+    // check if need to reduce rate: ECN and not in CWR
+    if (cnp && qp->annulus.m_caState == 0) {
+#if PRINT_LOG
+      printf("%lu %s %u %u %u %u %.3lf->",
+             Simulator::Now().GetTimeStep(),
+             "rate",
+             (qp->sip.Get() >> 8) & 0xffff,
+             (qp->dip.Get() >> 8) & 0xffff,
+             qp->sport,
+             qp->dport,
+             qp->m_rate.GetBitRate() * 1e-9);
+#endif
+      qp->annulus.m_e2e_rate = std::max(
+        m_minRate, qp->annulus.m_e2e_rate * (1 - qp->annulus.m_alpha / 2));
+#if PRINT_LOG
+      printf("%.3lf\n", qp->m_rate.GetBitRate() * 1e-9);
+#endif
+      qp->annulus.m_caState = 1;
+      qp->annulus.m_highSeq = qp->snd_nxt;
+    }
+
+    // additive inc
+    if (qp->annulus.m_caState == 0 && new_batch) {
+      qp->annulus.m_e2e_rate =
+        std::min(qp->m_max_rate, qp->annulus.m_e2e_rate + m_dctcp_rai);
+      qp->annulus.m_ns_rate =
+        std::min(qp->m_max_rate, qp->annulus.m_ns_rate + m_dctcp_rai);
+    }
+    qp->m_rate = std::min(qp->annulus.m_e2e_rate, qp->annulus.m_ns_rate);
+  } else {
+    // inter DC FLOW
+    uint64_t ack_seq = ch.ack.seq;
+    uint64_t rtt = Simulator::Now().GetTimeStep() - ch.ack.ih.ts;
+    double T = 5 * 1000 * 1000; // Threshold for delay-based congestion control = 5ms
+    double beta = 0.2;          // Parameter for window reduction in WAN = 0.2
+    if (rtt > qp->m_baseRtt + T) {
+      qp->annulus.m_e2e_rate = std::max(m_minRate, qp->annulus.m_e2e_rate * (1 - beta));
+    } else {
+      qp->annulus.m_e2e_rate = std::min(qp->m_max_rate, qp->annulus.m_e2e_rate + m_dctcp_rai);
+    }
+    qp->m_rate = std::min(qp->annulus.m_e2e_rate, qp->annulus.m_ns_rate);
+    // use Tcp Vegas algorithm, plz write the pseudo code
+    // DataRate expectedRate = qp->annulus.m_e2e_rate;
+    // DataRate ActualRate = qp->m_win / rtt;
+    // double alpha = 0.1;
+    // double beta = 0.2;
+    // if (ActualRate < expectedRate) {
+    //   // decrease rate
+    //   qp->m_rate = std::max(m_minRate, qp->m_rate * (1 - alpha));
+    // } else {
+    //   // increase rate
+    //   qp->m_rate = std::min(qp->m_max_rate, qp->m_rate * (1 + beta));
+    // }
+  }
+  // choose the smaller rate from the two control loops, and limit the larger one
+  if (qp->annulus.m_e2e_rate > 2 * qp->annulus.m_ns_rate) {
+    qp->annulus.m_e2e_rate = 2 * qp->annulus.m_ns_rate;
+  } else if (qp->annulus.m_ns_rate > 2 * qp->annulus.m_e2e_rate) {
+    qp->annulus.m_ns_rate = 2 * qp->annulus.m_e2e_rate;
+  }
+}
 
 } // namespace ns3

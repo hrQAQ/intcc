@@ -100,6 +100,8 @@ uint32_t CustomHeader::GetSerializedSize (void) const{
 			len += 8;
 		else if (l3Prot == 0xFE)
 			len += 9;
+		else if (l3Prot == 0xFA)
+			len += 15;
 	}
 	return len;
 }
@@ -179,7 +181,14 @@ void CustomHeader::Serialize (Buffer::Iterator start) const{
 		  i.WriteU32 (pfc.time);
 		  i.WriteU32 (pfc.qlen);
 		  i.WriteU8 (pfc.qIndex);
-	  }
+	  } else if (l3Prot == 0xFA){ // QCN FB
+		  i.WriteHtonU16 (fb.sport);
+		  i.WriteHtonU16 (fb.dport);
+		  i.WriteHtonU16 (fb.pg);
+		  i.WriteU8 (fb.qntz_Fb);
+          i.WriteU32(fb.qoff);
+          i.WriteU32(fb.qdelta);
+      }
   }
 }
 
@@ -318,6 +327,14 @@ CustomHeader::Deserialize (Buffer::Iterator start)
 		  pfc.qlen = i.ReadU32 ();
 		  pfc.qIndex = i.ReadU8 ();
 		  l4Size = 9;
+	  } else if (l3Prot == 0xFA){ // QCN FB
+		  fb.sport = i.ReadNtohU16();
+		  fb.dport = i.ReadNtohU16();
+		  fb.pg = i.ReadNtohU16();
+		  fb.qntz_Fb = i.ReadU8();
+		  fb.qoff = i.ReadU32();
+		  fb.qdelta = i.ReadU32();
+		  l4Size = 15;
 	  }
   }
 

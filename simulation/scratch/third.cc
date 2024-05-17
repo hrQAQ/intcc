@@ -52,9 +52,10 @@ const string PATH_TO_OUTPUT_FILE = "../data/";
 // 3:hpcc 7:timely 10: hpcc-pint
 uint32_t cc_mode = 1;
 // 1: DCQCN, 3: HPCC, 7: TIMELY, 8: DCTCP, 10: HPCC-PINT, 13: GEAR}
-map<uint32_t, string> cc_mode_map = { { 1, "DCQCN" },  { 3, "HPCC" },
-                                      { 7, "TIMELY" }, { 8, "DCTCP" },
-                                      { 13, "GEAR" },  { 14, "GEMINI" } };
+map<uint32_t, string> cc_mode_map = { { 1, "DCQCN" },   { 3, "HPCC" },
+                                      { 7, "TIMELY" },  { 8, "DCTCP" },
+                                      { 13, "GEAR" },   { 14, "GEMINI" },
+                                      { 15, "Annulus" } };
 string cc_mode_name;
 bool enable_qcn = true, use_dynamic_pfc_threshold = true;
 uint32_t packet_payload_size = 1000, l2_chunk_size = 0, l2_ack_interval = 0;
@@ -678,14 +679,15 @@ int main(int argc, char *argv[]) {
     topof.open(topology_file.c_str());
     flowf.open(flow_file.c_str());
     tracef.open(trace_file.c_str());
-    uint32_t node_num, dc_switch_num, wan_switch_num, link_num, trace_num;
-    topof >> node_num >> dc_switch_num >> wan_switch_num >> link_num;
+    uint32_t node_num, dc_switch_num, wan_switch_num, link_num, trace_num,
+      tor_switch_num;
+    topof >> node_num >> dc_switch_num >> wan_switch_num >> tor_switch_num >> link_num;
     flowf >> flow_num;
     tracef >> trace_num;
 
     // n.Create(node_num);
     vector<uint32_t> node_type(node_num, 0);
-    // dc switch的type是1, wan switch的type是2， node的type是0
+    // dc switch的type是1, wan switch的type是2, TOR switch的type是3，node的type是0
     for (uint32_t i = 0; i < dc_switch_num; i++) {
         uint32_t sid;
         topof >> sid;
@@ -696,6 +698,11 @@ int main(int argc, char *argv[]) {
         topof >> sid;
         node_type[sid] = 2;
     }
+    for (uint32_t i = 0; i < tor_switch_num; i++) {
+      uint32_t sid;
+      topof >> sid;
+      node_type[sid] = 3;
+    }
     for (uint32_t i = 0; i < node_num; i++) {
         if (node_type[i] == 0)
             n.Add(CreateObject<Node>());
@@ -703,9 +710,12 @@ int main(int argc, char *argv[]) {
             Ptr<SwitchNode> sw = CreateObject<SwitchNode>();
             n.Add(sw);
             sw->SetAttribute("EcnEnabled", BooleanValue(enable_qcn));
-            if (node_type[i] == 1) {
+            if (node_type[i] == 1 || node_type[i] == 3) {
                 // only dc switch enable int
                 sw->SetAttribute("IntEnabled", BooleanValue(true));
+            }
+            if(node_type[i] == 3) {
+              sw->SetAttribute("FbEnabled", BooleanValue(true));
             }
         }
     }

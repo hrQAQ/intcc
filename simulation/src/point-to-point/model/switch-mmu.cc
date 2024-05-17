@@ -26,6 +26,15 @@ namespace ns3 {
 		reserve = 4 * 1024;
 		resume_offset = 3 * 1024;
 
+		// QCN initialize
+		for(int i = 0; i < pCnt; i++)
+			for (int j = 0; j < qCnt; j++)
+				m_time_to_mark[i][j] = MarkTable(0);
+        memset(m_qlen_old, 0, sizeof(m_qlen_old));
+		memset(m_qntz_Fb, 0, sizeof(m_qntz_Fb));
+		memset(m_qoff, 0, sizeof(m_qoff));
+		memset(m_qdelta, 0, sizeof(m_qdelta));
+
 		// headroom
 		shared_used_bytes = 0;
 		memset(hdrm_bytes, 0, sizeof(hdrm_bytes));
@@ -87,6 +96,60 @@ namespace ns3 {
 	}
 	void SwitchMmu::SetResume(uint32_t port, uint32_t qIndex){
 		paused[port][qIndex] = false;
+	}
+
+	// Annulus
+    bool SwitchMmu::CheckShouldFeedback(uint32_t ifindex, uint32_t qIndex, uint32_t pktsize){
+      	if (qIndex == 0)
+        	return false;
+		// Q_EQ = 100KB, W = 8 is referred from the paper Annulus Setting
+		uint32_t Q_EQ = 100;
+		double W = 8;
+      	uint32_t qlen = egress_bytes[ifindex][qIndex]/1000;
+        uint32_t qlen_old = m_qlen_old[ifindex][qIndex];
+		m_qoff[ifindex][qIndex] = qlen - Q_EQ;
+		m_qdelta[ifindex][qIndex] = qlen - qlen_old;
+		m_Fb = m_qoff[ifindex][qIndex] + W * m_qdelta[ifindex][qIndex];		
+
+        // uniform quantization of -Fb, qntz_Fb, uses most significant bits of
+        // -Fb. note that qntz_Fb is a positive integer. 
+		// int m_qntz_Fb = 1<<GetHighestBit(-Fb); 
+		// printf("Fb: %f, qntz_Fb: %d\n", Fb,m_qntz_Fb);
+        bool generate_fb_frame = false;
+        m_time_to_mark[ifindex][qIndex] -= pktsize;
+        if (m_time_to_mark[ifindex][qIndex] < 0) {
+          if (m_Fb > 0)
+            generate_fb_frame = true;
+          m_qlen_old[ifindex][qIndex] = qlen;
+          // int next_period = MarkTable(m_qntz_Fb);
+          // m_time_to_mark = next_period *
+          // UniformVariable(0.85, 1.15).GetValue();
+          m_time_to_mark[ifindex][qIndex] = 15e3;
+        }
+        return generate_fb_frame;
+    }
+
+	int SwitchMmu::GetHighestBit(int x) {
+		int pos = 0;
+		for (int i = 0; i <= 8 * sizeof(int); i++, x >>= 1) {
+			if (x & 1) {
+				pos = i;
+			}
+		}
+		return pos;
+	}
+
+	int SwitchMmu::MarkTable(int qntz_Fb){
+		switch (qntz_Fb/8) {
+			case 0: return 150e3;
+			case 1: return 75e3;
+			case 2: return 50e3;
+			case 3: return 37.5e3;
+			case 4: return 30e3;
+			case 5: return 25e3;
+			case 6: return 21.5e3;
+			case 7: return 18.5e3;
+		}
 	}
 
 	uint32_t SwitchMmu::GetPfcThreshold(uint32_t port){

@@ -172,6 +172,13 @@ class RdmaHw : public Object {
      * GEMINI
      ********************/
     void HandleAckGemini(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
+
+    /*********************
+     * Annulus
+     ********************/
+    void HandleAckAnnulus(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
+    int ReceiveQCN(Ptr<Packet> p, CustomHeader& ch);
+
 };
 
 } /* namespace ns3 */

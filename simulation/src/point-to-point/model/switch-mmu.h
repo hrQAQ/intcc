@@ -28,6 +28,18 @@ public:
 	bool CheckShouldResume(uint32_t port, uint32_t qIndex);
 	void SetPause(uint32_t port, uint32_t qIndex);
 	void SetResume(uint32_t port, uint32_t qIndex);
+
+	// Annulus QCN feedback
+	bool CheckShouldFeedback(uint32_t port, uint32_t qIndex, uint32_t pktsize);
+	int MarkTable(int qntz_Fb);
+	int GetHighestBit(int x);
+	double m_Fb;
+	int32_t m_time_to_mark[pCnt][qCnt];
+	uint32_t m_qlen_old[pCnt][qCnt];
+	uint32_t m_qntz_Fb[pCnt][qCnt];
+	uint32_t m_qoff[pCnt][qCnt];
+	uint32_t m_qdelta[pCnt][qCnt];
+
 	//void GetPauseClasses(uint32_t port, uint32_t qIndex);
 	//bool GetResumeClasses(uint32_t port, uint32_t qIndex);
 

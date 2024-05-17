@@ -10,6 +10,7 @@
 #include "qbb-net-device.h"
 #include "ppp-header.h"
 #include "ns3/int-header.h"
+#include "ns3/fb-header.h"
 #include <cmath>
 
 namespace ns3 {
@@ -44,6 +45,11 @@ TypeId SwitchNode::GetTypeId (void)
 			UintegerValue(9000),
 			MakeUintegerAccessor(&SwitchNode::m_maxRtt),
 			MakeUintegerChecker<uint32_t>())
+	.AddAttribute("FbEnabled",
+			"Enable QCN feedback.",
+			BooleanValue(false),
+			MakeBooleanAccessor(&SwitchNode::m_fbEnabled),
+			MakeBooleanChecker())
   ;
   return tid;
 }
@@ -107,6 +113,28 @@ void SwitchNode::CheckAndSendResume(uint32_t inDev, uint32_t qIndex){
 		m_mmu->SetResume(inDev, qIndex);
 	}
 }
+
+void SwitchNode::CheckAndSendQcn(uint32_t inDev, uint32_t qIndex, Ptr<Packet> p){
+	Ptr<QbbNetDevice> device = DynamicCast<QbbNetDevice>(m_devices[inDev]);
+	CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
+	p->PeekHeader(ch);
+	if (m_mmu->CheckShouldFeedback(inDev, qIndex, p->GetSize() || true)){
+		FbHeader fbh;
+		fbh.SetPG(ch.udp.pg);
+        fbh.SetSport(ch.udp.dport);
+        fbh.SetDport(ch.udp.sport);
+		fbh.SetQntzFb(m_mmu->m_Fb);
+        fbh.SetQoff(m_mmu->m_qoff[inDev][qIndex]);
+        fbh.SetQdelta(m_mmu->m_qdelta[inDev][qIndex]);
+        if (fbh.GetQntzFb()>0)
+          printf("Set Feedback header: %d %d %d\n",
+                 fbh.GetQntzFb(),
+                 fbh.GetQoff(),
+                 fbh.GetQdelta());
+        device->SendQcn(qIndex, p, ch, fbh);
+	}
+}
+
 
 void SwitchNode::SendToDev(Ptr<Packet>p, CustomHeader &ch){
 	int idx = GetOutDev(p, ch);
@@ -216,6 +244,9 @@ void SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Pack
 				p->AddHeader(h);
 				p->AddHeader(ppp);
 			}
+		}
+		if (m_fbEnabled) {
+			CheckAndSendQcn(inDev, qIndex, p);
 		}
 		//CheckAndSendPfc(inDev, qIndex);
 		CheckAndSendResume(inDev, qIndex);

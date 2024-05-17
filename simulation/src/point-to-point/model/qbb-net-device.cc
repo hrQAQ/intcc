@@ -40,6 +40,7 @@
 #include "ns3/flow-id-tag.h"
 #include "ns3/qbb-header.h"
 #include "ns3/error-model.h"
+#include "ns3/fb-header.h"
 #include "ns3/cn-header.h"
 #include "ns3/ppp-header.h"
 #include "ns3/udp-header.h"
@@ -393,6 +394,7 @@ namespace ns3 {
 				// 		ih.hpcc.hop[0].GetBytes(),
 				// 		ih.hpcc.hop[0].GetQlen(),
 				// 		ih.hpcc.hop[0].GetLineRate());
+				
 				int ret = m_rdmaReceiveCb(packet, ch);
 				// TODO we may based on the ret do something
 			}
@@ -426,13 +428,33 @@ namespace ns3 {
 		ipv4h.SetTtl(1);
 		ipv4h.SetIdentification(UniformVariable(0, 65536).GetValue());
 		p->AddHeader(ipv4h);
-		AddHeader(p, 0x800);
+		AddHeader(p, 0x800); // PPP Protocol number
 		CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
 		p->PeekHeader(ch);
 		SwitchSend(0, p, ch);
 	}
 
-	
+	void QbbNetDevice::SendQcn(uint32_t qIndex, Ptr<Packet> packet, CustomHeader &ch, FbHeader &fbh){		
+		if(ch.l3Prot != 0x11) {
+			return;
+		}
+		Ptr<Packet> p = Create<Packet>(0);
+		p->AddHeader(fbh);
+		Ipv4Header head;  // Prepare IPv4 header
+		head.SetProtocol(0xFA);
+		head.SetSource(Ipv4Address(ch.dip));
+        head.SetPayloadSize(p->GetSize());
+        head.SetDestination(Ipv4Address(ch.sip));
+        head.SetPayloadSize(p->GetSize());
+        head.SetIdentification(UniformVariable(0, 65536).GetValue());
+		head.SetTtl(2);
+        p->AddHeader(head);
+        AddHeader(p, 0x800);
+        // CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header |
+        // CustomHeader::L4_Header);
+        p->PeekHeader(ch);
+        SwitchSend(0, p, ch);
+	}
 
 
 	bool
