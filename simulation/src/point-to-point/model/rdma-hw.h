@@ -176,7 +176,6 @@ class RdmaHw : public Object {
     /*********************
      * Annulus
      ********************/
-    DataRate m_ns_rate, m_e2e_rate;
     void HandleAckAnnulus(Ptr<RdmaQueuePair> qp, Ptr<Packet> p, CustomHeader& ch);
     int ReceiveQCN(Ptr<Packet> p, CustomHeader& ch);
 

@@ -29,7 +29,7 @@ class SwitchNode : public Node{
 protected:
 	bool m_ecnEnabled;
 	bool m_intEnabled;
-	bool m_qcnEnabled;
+	bool m_fbEnabled;
 	uint32_t m_ccMode;
 	uint64_t m_maxRtt;
 

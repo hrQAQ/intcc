@@ -48,6 +48,8 @@ namespace ns3 {
 			ih.hpcc.ts = ts;
 		if (ih.mode == 3)
 			ih.gear.ts = ts;
+		if (ih.mode == 4)
+			ih.ts = ts;
 	}
 	void qbbHeader::SetCnp(){
 		flags |= 1 << FLAG_CNP;
@@ -81,6 +83,8 @@ namespace ns3 {
 			return ih.hpcc.ts;
 		if (ih.mode == 3)
 			return ih.gear.ts;
+		if (ih.mode == 4)
+			return ih.ts;
 	}
 	uint8_t qbbHeader::GetCnp() const{
 		return (flags >> FLAG_CNP) & 1;

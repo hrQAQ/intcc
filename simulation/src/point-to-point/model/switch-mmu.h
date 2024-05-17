@@ -33,11 +33,12 @@ public:
 	bool CheckShouldFeedback(uint32_t port, uint32_t qIndex, uint32_t pktsize);
 	int MarkTable(int qntz_Fb);
 	int GetHighestBit(int x);
-	double Fb;
-	int32_t m_time_to_mark;
-	uint32_t m_qlen_old;
-	
-
+	double m_Fb;
+	int32_t m_time_to_mark[pCnt][qCnt];
+	uint32_t m_qlen_old[pCnt][qCnt];
+	uint32_t m_qntz_Fb[pCnt][qCnt];
+	uint32_t m_qoff[pCnt][qCnt];
+	uint32_t m_qdelta[pCnt][qCnt];
 
 	//void GetPauseClasses(uint32_t port, uint32_t qIndex);
 	//bool GetResumeClasses(uint32_t port, uint32_t qIndex);

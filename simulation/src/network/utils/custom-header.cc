@@ -100,6 +100,8 @@ uint32_t CustomHeader::GetSerializedSize (void) const{
 			len += 8;
 		else if (l3Prot == 0xFE)
 			len += 9;
+		else if (l3Prot == 0xFA)
+			len += 15;
 	}
 	return len;
 }

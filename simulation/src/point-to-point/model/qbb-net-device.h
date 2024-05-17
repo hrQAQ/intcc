@@ -28,6 +28,7 @@
 #include "ns3/ipv4.h"
 #include "ns3/ipv4-header.h"
 #include "ns3/udp-header.h"
+#include "ns3/fb-header.h"
 #include "ns3/rdma-queue-pair.h"
 #include <vector>
 #include<map>
@@ -127,7 +128,7 @@ public:
 
 	void SendPfc(uint32_t qIndex, uint32_t type); // type: 0 = pause, 1 = resume
   // FBframe
-	void SendQcn(uint32_t qIndex, Ptr<Packet> packet, CustomHeader &ch);
+	void SendQcn(uint32_t qIndex, Ptr<Packet> packet, CustomHeader &ch, FbHeader &fbh);
 
 	TracedCallback<Ptr<const Packet>, uint32_t> m_traceEnqueue;
 	TracedCallback<Ptr<const Packet>, uint32_t> m_traceDequeue;

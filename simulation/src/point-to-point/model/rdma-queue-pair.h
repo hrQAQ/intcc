@@ -135,6 +135,17 @@ class RdmaQueuePair : public Object {
         } hopState[IntHeader::maxHop];
         double m_delta_t;
     } intcc;
+    struct {
+      DataRate m_ns_rate, m_e2e_rate;
+      uint64_t m_lastUpdateSeq;
+      uint32_t m_caState;
+      uint64_t m_highSeq; // when to exit cwr
+      double m_alpha;
+      uint32_t m_ecnCnt;
+      uint32_t m_batchSizeOfAlpha;
+      
+
+    } annulus;
 
     /***********
      * methods

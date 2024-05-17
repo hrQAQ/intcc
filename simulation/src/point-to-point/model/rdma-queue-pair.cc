@@ -92,6 +92,15 @@ RdmaQueuePair::RdmaQueuePair(uint16_t pg, Ipv4Address _sip, Ipv4Address _dip, ui
       intcc.hopState[i].m_lastUtilization = 0;
     }
     intcc.m_delta_t = 0;
+
+    annulus.m_ns_rate = 0;
+    annulus.m_e2e_rate = 0;
+    annulus.m_lastUpdateSeq = 0;
+    annulus.m_caState = 0;
+    annulus.m_highSeq = 0;
+    annulus.m_alpha = 1;
+    annulus.m_ecnCnt = 0;
+    annulus.m_batchSizeOfAlpha = 0;
 }
 
 void RdmaQueuePair::SetLogFile(string metric_mon_file_prefix) {

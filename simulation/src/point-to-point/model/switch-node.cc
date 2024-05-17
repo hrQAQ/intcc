@@ -10,6 +10,7 @@
 #include "qbb-net-device.h"
 #include "ppp-header.h"
 #include "ns3/int-header.h"
+#include "ns3/fb-header.h"
 #include <cmath>
 
 namespace ns3 {
@@ -44,10 +45,10 @@ TypeId SwitchNode::GetTypeId (void)
 			UintegerValue(9000),
 			MakeUintegerAccessor(&SwitchNode::m_maxRtt),
 			MakeUintegerChecker<uint32_t>())
-	.AddAttribute("QcnEnabled",
+	.AddAttribute("FbEnabled",
 			"Enable QCN feedback.",
 			BooleanValue(false),
-			MakeBooleanAccessor(&SwitchNode::m_qcnEnabled),
+			MakeBooleanAccessor(&SwitchNode::m_fbEnabled),
 			MakeBooleanChecker())
   ;
   return tid;
@@ -115,11 +116,22 @@ void SwitchNode::CheckAndSendResume(uint32_t inDev, uint32_t qIndex){
 
 void SwitchNode::CheckAndSendQcn(uint32_t inDev, uint32_t qIndex, Ptr<Packet> p){
 	Ptr<QbbNetDevice> device = DynamicCast<QbbNetDevice>(m_devices[inDev]);
-	// if bytes > M then sample packet and calculate Qlen related, if Fb indicate congestion, then switch should send QCN packet
 	CustomHeader ch(CustomHeader::L2_Header | CustomHeader::L3_Header | CustomHeader::L4_Header);
 	p->PeekHeader(ch);
-	if (true || m_mmu->CheckShouldFeedback(inDev, qIndex, p->GetSize())){
-        device->SendQcn(qIndex, p, ch);
+	if (m_mmu->CheckShouldFeedback(inDev, qIndex, p->GetSize() || true)){
+		FbHeader fbh;
+		fbh.SetPG(ch.udp.pg);
+        fbh.SetSport(ch.udp.dport);
+        fbh.SetDport(ch.udp.sport);
+		fbh.SetQntzFb(m_mmu->m_Fb);
+        fbh.SetQoff(m_mmu->m_qoff[inDev][qIndex]);
+        fbh.SetQdelta(m_mmu->m_qdelta[inDev][qIndex]);
+        if (fbh.GetQntzFb()>0)
+          printf("Set Feedback header: %d %d %d\n",
+                 fbh.GetQntzFb(),
+                 fbh.GetQoff(),
+                 fbh.GetQdelta());
+        device->SendQcn(qIndex, p, ch, fbh);
 	}
 }
 
@@ -233,7 +245,7 @@ void SwitchNode::SwitchNotifyDequeue(uint32_t ifIndex, uint32_t qIndex, Ptr<Pack
 				p->AddHeader(ppp);
 			}
 		}
-		if (m_qcnEnabled) {
+		if (m_fbEnabled) {
 			CheckAndSendQcn(inDev, qIndex, p);
 		}
 		//CheckAndSendPfc(inDev, qIndex);

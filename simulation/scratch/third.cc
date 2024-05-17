@@ -698,7 +698,7 @@ int main(int argc, char *argv[]) {
         topof >> sid;
         node_type[sid] = 2;
     }
-    for (uint32_t i = 0; i < wan_switch_num; i++) {
+    for (uint32_t i = 0; i < tor_switch_num; i++) {
       uint32_t sid;
       topof >> sid;
       node_type[sid] = 3;
@@ -715,7 +715,7 @@ int main(int argc, char *argv[]) {
                 sw->SetAttribute("IntEnabled", BooleanValue(true));
             }
             if(node_type[i] == 3) {
-              sw->SetAttribute("QcnEnabled", BooleanValue(true));
+              sw->SetAttribute("FbEnabled", BooleanValue(true));
             }
         }
     }
